@@ -1,0 +1,4 @@
+deprecated/
+experiments/
+**/__pycache__/
+CLAUDE.md

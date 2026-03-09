@@ -1,0 +1,16 @@
+pyproject.toml
+src/spdal/__init__.py
+src/spdal/_base.py
+src/spdal/_utils.py
+src/spdal/lrhe.py
+src/spdal/ppvh.py
+src/spdal/scil.py
+src/spdal/shef.py
+src/spdal/traced.py
+src/spdal/vebf.py
+src/spdal.egg-info/PKG-INFO
+src/spdal.egg-info/SOURCES.txt
+src/spdal.egg-info/dependency_links.txt
+src/spdal.egg-info/requires.txt
+src/spdal.egg-info/top_level.txt
+tests/test_classifiers.py
