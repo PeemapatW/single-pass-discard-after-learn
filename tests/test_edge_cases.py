@@ -39,6 +39,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 from sklearn.datasets import load_iris, make_classification
+from sklearn.metrics import accuracy_score
 
 from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED
 
@@ -295,6 +296,62 @@ class TestEdgeCases:
             f"D4 expected float dtype, got {preds.dtype}"
         )
         assert set(preds).issubset({0.0, 1.0}), f"unexpected labels: {set(preds)}"
+
+    @pytest.mark.parametrize("Clf", ALL_CLASSIFIERS, ids=ALL_CLASSIFIER_IDS)
+    def test_predict_before_fit_raises(self, Clf):
+        """predict() before any partial_fit must raise some exception (no silent bad output)."""
+        clf = Clf()
+        rng = np.random.default_rng(99)
+        X_test = rng.standard_normal((5, 4))
+        with pytest.raises(Exception):
+            clf.predict(X_test)
+
+    @pytest.mark.parametrize("Clf", ALL_CLASSIFIERS, ids=ALL_CLASSIFIER_IDS)
+    def test_fit_resets_state(self, binary_data, Clf):
+        """
+        fit() must discard state from a previous fit — neurons must not accumulate.
+
+        Strategy: fit on half the data first, then fit on the full data.
+        The final neuron count must equal that of a fresh fit on full data.
+        """
+        X_train, _, y_train = binary_data
+        X_half, y_half = X_train[:100], y_train[:100]
+
+        clf = Clf()
+        clf.fit(X_half, y_half)
+        n_half = len(clf.neuron_list)
+
+        clf.fit(X_train, y_train)
+        n_full = len(clf.neuron_list)
+
+        clf_ref = Clf()
+        clf_ref.fit(X_train, y_train)
+        n_ref = len(clf_ref.neuron_list)
+
+        assert n_full == n_ref, (
+            f"fit() accumulated state: n_full={n_full} != n_ref={n_ref} "
+            f"(n_half was {n_half})"
+        )
+
+    @pytest.mark.parametrize("Clf", ALL_CLASSIFIERS, ids=ALL_CLASSIFIER_IDS)
+    def test_accuracy_sanity_binary(self, binary_data, Clf):
+        """Each classifier must reach at least 60% accuracy on the binary task."""
+        X_train, X_test, y_train = binary_data
+        y_test = make_classification(n_samples=300, random_state=42)[1][200:]
+        clf = Clf()
+        clf.partial_fit(X_train, y_train, classes=[0, 1])
+        acc = accuracy_score(y_test, clf.predict(X_test))
+        assert acc >= 0.60, f"{Clf.__name__} binary accuracy {acc:.3f} < 0.60"
+
+    @pytest.mark.parametrize("Clf", ALL_CLASSIFIERS, ids=ALL_CLASSIFIER_IDS)
+    def test_accuracy_sanity_iris(self, iris_data, Clf):
+        """Each classifier must reach at least 60% accuracy on Iris."""
+        X_train, X_test, y_train = iris_data
+        y_test = load_iris(return_X_y=True)[1][120:]
+        clf = Clf()
+        clf.fit(X_train, y_train)
+        acc = accuracy_score(y_test, clf.predict(X_test))
+        assert acc >= 0.60, f"{Clf.__name__} Iris accuracy {acc:.3f} < 0.60"
 
 
 # ---------------------------------------------------------------------------

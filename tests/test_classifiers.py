@@ -150,14 +150,6 @@ class TestLRHE:
         for col in ['y', 'center', 'cov', 'eig_component', 'width', 'n']:
             assert col in clf.neuron_list[0]
 
-    def test_sklearn_interface(self, binary_data):
-        X_train, _, y_train = binary_data
-        clf = LRHE()
-        assert hasattr(clf, 'partial_fit')
-        assert hasattr(clf, 'predict')
-        clf.partial_fit(X_train, y_train, classes=[0, 1])
-        assert hasattr(clf, 'classes_')
-
 
 class TestVEBF:
     def test_neuron_count(self, binary_data):
