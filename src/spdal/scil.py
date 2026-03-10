@@ -69,7 +69,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         )
 
         eig_c_new, pca_var_new = self.compute_sorted_eigencomponent(cov_new)
-        width_new = np.array([width_alpha[d] + np.abs(np.matmul(cen_new - cen_Y, eig_c_new[d].T)) for d in range(len(width_alpha))])
+        width_new = np.array([width_alpha[d] + np.abs(np.matmul(cen_new - cen_alpha, eig_c_new[d].T)) for d in range(len(width_alpha))])
         max_psi = np.max([self.hyperellipsoidal_fn(y, cen_new, eig_c_new, width_new) for y in Y])
         if max_psi > 0:
             width_new = np.sqrt(1 + self.eta * max_psi) * width_new
