@@ -5,9 +5,52 @@ from ._base import ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, Princip
 
 
 class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProjectionBaseClassifier):
+    """Tracking-based Robust Adaptive Classifier with Ellipsoidal Dynamics (TRACED).
+
+    Most advanced classifier in spdal. Builds neurons using the same three-phase loop
+    as SCIL (create_and_update → find_and_update → find_and_capture), but uses mean NN
+    distance (scaled by delta) as the capture radius instead of a pairwise-distance width.
+
+    Neuron schema adds 'displacement' (centroid drift) and 'expansion' (width growth ratio),
+    which are used during prediction to adaptively adjust boundaries for points that fall
+    outside all ellipsoids.
+
+    predict() implements two optional correction strategies (controlled by 'method'):
+      - 'overlap': for points inside multiple cross-class neurons, resolve it with D4 techniques
+        (reduce_dims controls how many axes are dropped).
+      - 'outside': for points outside all neurons, shifts each candidate neuron by its
+        displacement and scales width by expansion before re-projecting.
+
+    Parameters
+    ----------
+    norm : int
+        Norm order for distance calculations (default 2).
+    epsilon : float
+        Numerical floor for widths and denominators.
+    method : str
+        Space-separated flags: 'overlap', 'outside', or 'overlap-outside' (default).
+    r : float
+        Radius scaling factor for width initialisation (default sqrt(2π)).
+    N0 : int
+        Minimum sample count for a neuron to be used in predict().
+    delta : float
+        Multiplier on mean NN distance used as initial capture radius.
+    alpha : float
+        EMA weight for displacement update (0 = no memory, 1 = full update).
+    beta : float
+        EMA weight for expansion update.
+    distance_metric : str
+        'boundary' (default) or 'center' — which distance metric predict() uses.
+    width_parameter : float
+        Blending weight for width update (1 = pure Gaussian, 0 = displacement-based).
+    reduce_dims : int
+        Number of principal axes to drop when resolving overlaps/outsides.
+    threshold : float
+        Angle threshold (degrees) for find_index_pairs.
+    """
 
     def __init__(self, norm=2, epsilon=1e-10, method="overlap-outside", r=_SQRT_2PI, N0=3, delta=2,
-                alpha=0, beta=0, distance_metric='boundary', width_parameter=1, reduce_dims=0,
+                alpha=0.5, beta=0.01, distance_metric='boundary', width_parameter=1, reduce_dims=1,
                 threshold=15) -> None:
 
         # Attributes
@@ -32,6 +75,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         self.count_outside = 0
 
     def distance_init(self, X, y):
+        """Initialises dist_ths[y] = delta * mean NN distance for each new class."""
         all_class = np.unique(y)
         exist_class = set(self.dist_ths.keys())
         new_class = set(all_class) - exist_class
@@ -42,6 +86,10 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
             self.dist_ths[y_] = initial_dist
 
     def create_new_neuron(self, X, y):
+        """Seeds a neuron at X[0] with zero-width and initialises displacement/expansion fields.
+
+        Returns (X_remaining, neuron). Overrides base class to accept a batch.
+        """
         select_index = 0
         cen = X[select_index, :]
         cov = np.zeros([len(cen)]*2) + np.identity(len(cen))*self.epsilon
@@ -57,6 +105,10 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X_, neuron
 
     def select_update_data(self, X, neuron):
+        """Returns (Y, Y_index): rows of X within dist_ths[y] of the neuron's center.
+
+        Uses Euclidean distance (not ellipsoidal), unlike SCIL's select_update_data.
+        """
         center = neuron["center"]
         y = neuron["y"]
         distances = np.linalg.norm(X - center, axis=1)
@@ -64,6 +116,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X[indices], indices
 
     def update_parameter(self, neuron, alpha, X, Y, Y_index):
+        """Absorbs batch Y into neuron alpha and updates all fields including displacement and expansion."""
         cen_alpha = neuron["center"]
         eig_c_alpha = neuron["eig_component"]
         width_alpha = neuron["width"]
@@ -114,6 +167,12 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X_new
 
     def merge_neuron(self, alpha, y):
+        """Merges neuron alpha with the nearest overlapping same-class neuron using ellipsoid geometry.
+
+        Uses eigenvector-based covariance reconstruction (not raw cov) to build the P matrix.
+        Returns (merged: bool, new_alpha: int). Unlike SCIL/base-class, the merged result goes
+        into alpha (not beta), and adjusts alpha index if beta was removed before it.
+        """
         neurons_y = [(i, n) for i, n in enumerate(self.neuron_list) if n['y'] == y]
         if len(neurons_y) <= 1:
             return False, alpha
@@ -172,6 +231,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return False, alpha
 
     def create_and_update(self, X, y):
+        """Seeds the first neuron for class y, updates dist_ths, absorbs nearby points."""
         X, neuron = self.create_new_neuron(X, y)
         self.neuron_list.append(neuron)
         self.dist_ths_y_update(y)
@@ -182,6 +242,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X
 
     def find_and_update(self, X, y):
+        """Iteratively assigns remaining X to the nearest existing neuron, merging after each update."""
         while len(X) != 0:
             neurons_y = [(i, n) for i, n in enumerate(self.neuron_list) if n['y'] == y]
             x_mean = np.mean(X, axis=0)
@@ -199,6 +260,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X
 
     def find_and_capture(self, X, y):
+        """Creates new neurons one at a time until all remaining X is captured, merging after each."""
         while len(X) != 0:
             X, neuron = self.create_new_neuron(X, y)
             self.neuron_list.append(neuron)
@@ -213,6 +275,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return X
 
     def fit(self, X, y, classes=None, _reset=True):
+        """Train on X, y using the three-phase TRACED loop per class. Resets unless _reset=False."""
         if _reset:
             self.neuron_list = []
             self.dist_ths = {}
@@ -229,9 +292,14 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
+        """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
     def dist_ths_y_update(self, y):
+        """Doubles dist_ths[y] if more than half the class-y neurons have n < N0.
+
+        Overrides base class which uses self.M; TRACED uses self.N0 instead.
+        """
         ths = self.dist_ths[y]
         neurons_y = [n for n in self.neuron_list if n['y'] == y]
         m = sum(1 for n in neurons_y if n['n'] < self.N0)
@@ -239,16 +307,19 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
             self.dist_ths[y] = ths * 2
 
     def _calculate_boundary_distance(self, x_centered, P, M):
+        """Returns ||x_centered|| * (1 - 1/center_distance): geometric distance to ellipsoid surface."""
         distances = self._calculate_center_distance(x_centered, P, M)
         geo_distance = LA.norm(x_centered, axis=1, ord=self.norm) * (1 - 1 / distances)
         return geo_distance
 
     def _calculate_center_distance(self, x_centered, P, M):
+        """Returns the Lp-norm of the normalised projection: (||P(x-c)/M||_p)."""
         normalized_projections = (x_centered @ P.T) / M
         distances = np.sum(np.abs(normalized_projections)**self.norm, axis=1) ** (1 / self.norm)
         return distances
 
     def _compute_distance(self, x_centered, P, M):
+        """Dispatches to boundary or center distance based on self.distance_metric."""
         if self.distance_metric.lower() == 'boundary':
             return self._calculate_boundary_distance(x_centered, P, M)
         elif self.distance_metric.lower() == 'center':
@@ -257,6 +328,11 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
             raise ValueError(f"distance_metric should be 'boundary' or 'center'")
 
     def find_index_pairs(self, arr):
+        """Like the base class but selects (rows - reduce_dims) pairs and returns shape (2, k).
+
+        reduce_dims controls how many of the most-correlated axes to exclude, keeping
+        only the most discriminative (bottom) axes. Returns transposed vs base class.
+        """
         rows, cols = arr.shape
         n_pairs = max(1, rows - self.reduce_dims)
         flat_list = [(val, i // cols, i % cols) for i, val in enumerate(arr.ravel()) if val <= self.threshold]
@@ -284,6 +360,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         return np.array(result).T
 
     def predict(self, X):
+        """Predicts class labels, applying overlap and/or outside corrections per self.method."""
         neuron_list_test = [n for n in self.neuron_list if n['n'] >= self.N0]
         k = X.shape[1]
 

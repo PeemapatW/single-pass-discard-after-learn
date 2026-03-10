@@ -381,7 +381,7 @@ IRIS_D4_N_NEURONS = 3
 IRIS_D4_PREDS = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 
 IRIS_TRACED_N_NEURONS = 7
-IRIS_TRACED_PREDS = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+IRIS_TRACED_PREDS = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
 
 
 # ---------------------------------------------------------------------------
@@ -989,6 +989,67 @@ class TestD4Numerics:
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
 
+class TestD4HyperparamParity:
+    """D4: verify renamed parameters produce same results as deprecated equivalents.
+
+    Parameter mapping (new → deprecated):
+        width_parameter → alpha
+        reduce_dims     → max_d  (semantic: n_pairs = n_features - reduce_dims)
+    """
+
+    @pytest.mark.parametrize("new_params,dep_params", [
+        ({"width_parameter": 0.5}, {"alpha": 0.5}),
+        ({"delta": 2}, {"delta": 2}),
+        ({"width_parameter": 0.5, "delta": 2}, {"alpha": 0.5, "delta": 2}),
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, new_params, dep_params):
+        X_train, _, y_train = iris_data
+        clf_new = D4(**new_params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.D4(**dep_params)
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov', 'width', 'eig_component', 'variance'],
+        )
+
+    @pytest.mark.parametrize("new_params,dep_params", [
+        ({"width_parameter": 0.5}, {"alpha": 0.5}),
+        ({"delta": 2}, {"delta": 2}),
+        ({"width_parameter": 0.5, "delta": 2}, {"alpha": 0.5, "delta": 2}),
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, new_params, dep_params):
+        X_train, X_test, y_train = iris_data
+        clf_new = D4(**new_params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.D4(**dep_params)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+    @pytest.mark.parametrize("reduce_dims", [1, 2])
+    def test_accuracy_reduce_dims_iris(self, iris_data, dep_module, reduce_dims):
+        """reduce_dims=k matches deprecated max_d=(n_features - k) for 4-feature iris."""
+        X_train, X_test, y_train = iris_data
+        n_features = X_train.shape[1]
+        clf_new = D4(reduce_dims=reduce_dims)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.D4(max_d=n_features - reduce_dims)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+    @pytest.mark.parametrize("reduce_dims", [1, 2])
+    def test_accuracy_reduce_dims_multiclass(self, multiclass_data, dep_module, reduce_dims):
+        """reduce_dims=k matches deprecated max_d=(n_features - k) for 20-feature data."""
+        X_train, X_test, y_train, classes = multiclass_data
+        n_features = X_train.shape[1]
+        clf_new = D4(reduce_dims=reduce_dims)
+        clf_new.partial_fit(X_train, y_train, classes=classes)
+        clf_dep = dep_module.D4(max_d=n_features - reduce_dims)
+        clf_dep.partial_fit(X_train, y_train, classes=classes)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+
 class TestD4ChunkedMonitor:
     """Track D4 neuron params, predictions, and accuracy after every chunk."""
 
@@ -1015,6 +1076,11 @@ class TestD4ChunkedMonitor:
                                  fields=['center', 'cov', 'width', 'eig_component', 'variance'])
 
 
+_TRACED_NEW_DEFAULTS = {"alpha": 0.5, "beta": 0.01, "reduce_dims": 1}
+"""Params whose defaults changed between deprecated and new TRACED; must be passed
+explicitly to dep_module.TRACED() so both classifiers run with identical settings."""
+
+
 class TestTRACEDNumerics:
     """TRACED: list-of-dicts neuron values must match deprecated DataFrame values."""
 
@@ -1022,7 +1088,7 @@ class TestTRACEDNumerics:
         X_train, _, y_train, classes = multiclass_data
         clf_new = TRACED()
         clf_new.partial_fit(X_train, y_train, classes=classes)
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         clf_dep.partial_fit(X_train, y_train, classes=classes)
         _assert_neurons_close(
             _sorted_neurons(clf_new.neuron_list),
@@ -1034,7 +1100,7 @@ class TestTRACEDNumerics:
         X_train, _, y_train = iris_data
         clf_new = TRACED()
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         clf_dep.fit(X_train, y_train)
         _assert_neurons_close(
             _sorted_neurons(clf_new.neuron_list),
@@ -1046,7 +1112,7 @@ class TestTRACEDNumerics:
         X_train, X_test, y_train, classes = multiclass_data
         clf_new = TRACED()
         clf_new.partial_fit(X_train, y_train, classes=classes)
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         clf_dep.partial_fit(X_train, y_train, classes=classes)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
@@ -1054,7 +1120,7 @@ class TestTRACEDNumerics:
         X_train, X_test, y_train = iris_data
         clf_new = TRACED()
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         clf_dep.fit(X_train, y_train)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
@@ -1066,7 +1132,7 @@ class TestTRACEDChunkedMonitor:
         chunks, X_test, classes = multiclass_chunks
         y_test = load_iris(return_X_y=True)[1][100:]
         clf_new = TRACED()
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         for i, (Xc, yc) in enumerate(chunks):
             clf_new.partial_fit(Xc, yc, classes=classes)
             clf_dep.partial_fit(Xc, yc, classes=classes)
@@ -1077,9 +1143,193 @@ class TestTRACEDChunkedMonitor:
         chunks, X_test, classes = iris_chunks
         y_test = load_iris(return_X_y=True)[1][120:]
         clf_new = TRACED()
-        clf_dep = dep_module.TRACED()
+        clf_dep = dep_module.TRACED(**_TRACED_NEW_DEFAULTS)
         for i, (Xc, yc) in enumerate(chunks):
             clf_new.partial_fit(Xc, yc, classes=classes)
             clf_dep.partial_fit(Xc, yc, classes=classes)
             _assert_chunk_state(clf_new, clf_dep, i, X_test, y_test,
                                  fields=['center', 'cov', 'variance', 'width', 'displacement', 'expansion'])
+
+
+# ---------------------------------------------------------------------------
+# Hyperparam parity tests: verify non-default params produce identical results
+# between the new src/ classifiers and the deprecated module.
+# ---------------------------------------------------------------------------
+
+class TestLRHEHyperparamParity:
+    """LRHE: verify non-default hyperparameters match deprecated module output."""
+
+    @pytest.mark.parametrize("params", [
+        {"alpha": 0.3},
+        {"delta": 2},
+        {"alpha": 0.3, "delta": 2},
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, params):
+        X_train, _, y_train = iris_data
+        clf_new = LRHE(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.LRHE(**params)
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov', 'width', 'eig_component'],
+        )
+
+    @pytest.mark.parametrize("params", [
+        {"alpha": 0.3},
+        {"delta": 2},
+        {"alpha": 0.3, "delta": 2},
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, params):
+        X_train, X_test, y_train = iris_data
+        clf_new = LRHE(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.LRHE(**params)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+
+class TestVEBFHyperparamParity:
+    """VEBF: verify non-default hyperparameters match deprecated module output."""
+
+    @pytest.mark.parametrize("params", [
+        {"delta": 2},
+        {"theta": 0.1},
+        {"delta": 2, "theta": 0.1},
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, params):
+        X_train, _, y_train = iris_data
+        clf_new = VEBF(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.VEBF(**params)
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov', 'width', 'eig_component'],
+        )
+
+    @pytest.mark.parametrize("params", [
+        {"delta": 2},
+        {"theta": 0.1},
+        {"delta": 2, "theta": 0.1},
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, params):
+        X_train, X_test, y_train = iris_data
+        clf_new = VEBF(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.VEBF(**params)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+
+class TestSCILHyperparamParity:
+    """SCIL: verify non-default hyperparameters match deprecated module output."""
+
+    @pytest.mark.parametrize("params", [
+        {"delta": 2},
+        {"N0": 5},
+        {"eta": 3},
+        {"N0": 5, "eta": 3, "delta": 2},
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, params):
+        X_train, _, y_train = iris_data
+        clf_new = SCIL(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.SCIL(**params)
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov', 'width', 'eig_component', 'variance'],
+        )
+
+    @pytest.mark.parametrize("params", [
+        {"delta": 2},
+        {"N0": 5},
+        {"eta": 3},
+        {"N0": 5, "eta": 3, "delta": 2},
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, params):
+        X_train, X_test, y_train = iris_data
+        clf_new = SCIL(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.SCIL(**params)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+
+class TestSHEFHyperparamParity:
+    """SHEF: verify non-default hyperparameters match deprecated module output."""
+
+    @pytest.mark.parametrize("params", [
+        {"M": 5},
+        {"r": 2.0},
+        {"M": 5, "r": 2.0},
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, params):
+        X_train, _, y_train = iris_data
+        clf_new = SHEF(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.SHEF(**params)
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov'],
+        )
+
+    @pytest.mark.parametrize("params", [
+        {"M": 5},
+        {"r": 2.0},
+        {"M": 5, "r": 2.0},
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, params):
+        X_train, X_test, y_train = iris_data
+        clf_new = SHEF(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.SHEF(**params)
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
+
+
+class TestTRACEDHyperparamParity:
+    """TRACED: verify non-default hyperparameters match deprecated module output.
+
+    Only predict-only params are tested so training-produced neuron fields are
+    identical. _TRACED_NEW_DEFAULTS is merged into every dep_module call to
+    compensate for changed defaults (alpha, beta, reduce_dims).
+    """
+
+    @pytest.mark.parametrize("params", [
+        {"distance_metric": "center"},
+        {"norm": 1},
+        {"method": "overlap"},
+        {"distance_metric": "center", "norm": 1},
+    ])
+    def test_neurons_iris(self, iris_data, dep_module, params):
+        X_train, _, y_train = iris_data
+        clf_new = TRACED(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.TRACED(**{**_TRACED_NEW_DEFAULTS, **params})
+        clf_dep.fit(X_train, y_train)
+        _assert_neurons_close(
+            _sorted_neurons(clf_new.neuron_list),
+            _sorted_neurons(clf_dep.neuron_list),
+            fields=['center', 'cov', 'variance', 'width', 'displacement', 'expansion'],
+        )
+
+    @pytest.mark.parametrize("params", [
+        {"distance_metric": "center"},
+        {"norm": 1},
+        {"method": "overlap"},
+        {"distance_metric": "center", "norm": 1},
+    ])
+    def test_accuracy_iris(self, iris_data, dep_module, params):
+        X_train, X_test, y_train = iris_data
+        clf_new = TRACED(**params)
+        clf_new.fit(X_train, y_train)
+        clf_dep = dep_module.TRACED(**{**_TRACED_NEW_DEFAULTS, **params})
+        clf_dep.fit(X_train, y_train)
+        np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
