@@ -3,7 +3,7 @@ src/spdal/__init__.py
 src/spdal/_base.py
 src/spdal/_utils.py
 src/spdal/lrhe.py
-src/spdal/ppvh.py
+src/spdal/d4.py
 src/spdal/scil.py
 src/spdal/shef.py
 src/spdal/traced.py
@@ -14,3 +14,5 @@ src/spdal.egg-info/dependency_links.txt
 src/spdal.egg-info/requires.txt
 src/spdal.egg-info/top_level.txt
 tests/test_classifiers.py
+tests/test_edge_cases.py
+tests/test_hyperparams.py

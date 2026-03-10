@@ -1,19 +1,27 @@
 import numpy as np
 import numpy.linalg as LA
-import pandas as pd
 
-from ._base import VersatileEllipticBaseClassifier, _SQRT_2PI
+from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin, _SQRT_2PI
 
 
-class SCIL(VersatileEllipticBaseClassifier):
+class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
     def __init__(self, N0=3, eta=2, delta=1, epsilon=1e-10, theta=0):
-        self.neuron_list = pd.DataFrame([])
+        self.neuron_list = []
         self.init_width = {}
         self.delta = delta
         self.N0 = N0
         self.eta = eta
         self.theta = theta
         self.epsilon = epsilon
+
+    def width_init(self, X, y):
+        all_class = np.unique(y)
+        exist_class = set(self.init_width.keys())
+        new_class = set(all_class) - exist_class
+        if len(new_class) > 0:
+            average_distance = self.average_pairwise_distance(X)
+            for y_ in new_class:
+                self.init_width[y_] = average_distance
 
     def create_new_neuron(self, X, y):
         select_index = 0
@@ -23,7 +31,7 @@ class SCIL(VersatileEllipticBaseClassifier):
         pca_var = np.ones(len(cen))
         width = self.init_width[y]
         n = 1
-        neuron = {'y':y,'cov':cov,'center':cen,'eig_component':eig_c,'variance':pca_var,'width':width,'n':n}
+        neuron = {'y': y, 'cov': cov, 'center': cen, 'eig_component': eig_c, 'variance': pca_var, 'width': width, 'n': n}
         X_ = np.delete(X, select_index, axis=0)
         return X_, neuron
 
@@ -35,8 +43,8 @@ class SCIL(VersatileEllipticBaseClassifier):
 
         center_temp = (n * center + X) / (n + 1)
         x_centered = X - center_temp
-        P_d_x = np.tensordot(x_centered, eig_c, axes=(1,1))
-        Psi = LA.norm(P_d_x/width,ord=2,axis=1)**2 - 1
+        P_d_x = np.tensordot(x_centered, eig_c, axes=(1, 1))
+        Psi = LA.norm(P_d_x / width, ord=2, axis=1) ** 2 - 1
 
         Y_index = np.where(Psi <= 0)[0]
         Y = X[Y_index]
@@ -44,20 +52,6 @@ class SCIL(VersatileEllipticBaseClassifier):
         return Y, Y_index
 
     def update_parameter(self, neuron, alpha, X, Y, Y_index):
-        """
-        Updates the parameters of a neuron based on new data.
-
-        Args:
-            neuron: A dictionary containing the neuron's parameters.
-            alpha: The index of the neuron to update.
-            X: The original data array.
-            Y: The new data points assigned to the neuron.
-            Y_index: The indices of the new data points in X.
-
-        Returns:
-            The updated data array X with the assigned data points removed.
-        """
-
         cen_alpha = neuron["center"]
         cov_alpha = neuron["cov"]
         n_alpha = neuron["n"]
@@ -67,7 +61,7 @@ class SCIL(VersatileEllipticBaseClassifier):
         n_new = n_alpha + n_Y
         cen_new = (n_alpha * cen_alpha + n_Y * cen_Y) / n_new
 
-        Y_sum = np.sum(Y[:, :, np.newaxis] * Y[:, np.newaxis, :], axis=0)  # Vectorized sum of outer products
+        Y_sum = np.sum(Y[:, :, np.newaxis] * Y[:, np.newaxis, :], axis=0)
         cov_new = (
             n_alpha * (cov_alpha + np.outer(cen_alpha, cen_alpha)) / n_new
             + Y_sum / n_new
@@ -75,41 +69,26 @@ class SCIL(VersatileEllipticBaseClassifier):
         )
 
         eig_c_new, pca_var_new = self.compute_sorted_eigencomponent(cov_new)
-        width_new = np.array([width_alpha[d]+np.abs(np.matmul(cen_new-cen_Y,eig_c_new[d].T)) for d in range(len(width_alpha))])
-        max_psi = np.max([self.hyperellipsoidal_fn(y,cen_new,eig_c_new,width_new) for y in Y])
+        width_new = np.array([width_alpha[d] + np.abs(np.matmul(cen_new - cen_Y, eig_c_new[d].T)) for d in range(len(width_alpha))])
+        max_psi = np.max([self.hyperellipsoidal_fn(y, cen_new, eig_c_new, width_new) for y in Y])
         if max_psi > 0:
-            width_new = np.sqrt(1+self.eta*max_psi)*width_new
-        # Efficiently remove assigned data points from X
+            width_new = np.sqrt(1 + self.eta * max_psi) * width_new
         X_new = np.delete(X, Y_index, axis=0)
 
-        # Update neuron parameters in the neuron list
-        self.neuron_list.at[alpha, 'center'] = cen_new
-        self.neuron_list.at[alpha, 'eig_component'] = eig_c_new
-        self.neuron_list.at[alpha, 'n'] = n_new
-        self.neuron_list.at[alpha, 'cov'] = cov_new
-        self.neuron_list.at[alpha, 'variance'] = pca_var_new
-        self.neuron_list.at[alpha, 'width'] = width_new
+        self.neuron_list[alpha]['center'] = cen_new
+        self.neuron_list[alpha]['eig_component'] = eig_c_new
+        self.neuron_list[alpha]['n'] = n_new
+        self.neuron_list[alpha]['cov'] = cov_new
+        self.neuron_list[alpha]['variance'] = pca_var_new
+        self.neuron_list[alpha]['width'] = width_new
 
         return X_new
 
     def create_and_update(self, X, y):
-        """
-        Creates a new neuron, updates its parameters, and potentially merges it with existing neurons.
-
-        Args:
-            X: A numpy array of shape (n_samples, n_features) representing the data.
-            y: The class label for the new neuron.
-
-        Returns:
-            The updated data array X with assigned data points removed.
-        """
-
-        # Create a new neuron and add it to the neuron list
         X, neuron = self.create_new_neuron(X, y)
-        self.neuron_list = pd.concat([self.neuron_list, pd.DataFrame([neuron])], ignore_index=True)
-        alpha = self.neuron_list.index[-1]
+        self.neuron_list.append(neuron)
+        alpha = len(self.neuron_list) - 1
 
-        # Select data points and update neuron parameters
         Y, Y_index = self.select_update_data(X, neuron)
         if len(Y) != 0:
             X = self.update_parameter(neuron, alpha, X, Y, Y_index)
@@ -117,58 +96,26 @@ class SCIL(VersatileEllipticBaseClassifier):
         return X
 
     def find_and_update(self, X, y):
-        """
-        Finds the closest neuron to the mean of the data and updates its parameters.
-
-        Args:
-            X: A numpy array of shape (n_samples, n_features) representing the data.
-            y: The class label of the neurons to consider.
-
-        Returns:
-            The updated data array X with assigned data points removed.
-        """
-
         while len(X) != 0:
-            neuron_list_y = self.neuron_list.query(f'y == {y}')
+            neurons_y = [(i, n) for i, n in enumerate(self.neuron_list) if n['y'] == y]
             x_mean = np.mean(X, axis=0)
+            alpha, neuron = min(neurons_y, key=lambda t: LA.norm(x_mean - t[1]['center']))
 
-            # Finding the closest neuron
-            distances = [LA.norm(x_mean-neuron_list_y.at[idx,'center']) for idx in neuron_list_y.index]
-            alpha = neuron_list_y.index[np.argmin(distances)]
-
-            neuron = self.neuron_list.loc[alpha].to_dict()
-
-            # Select data points and update neuron parameters
             Y, Y_index = self.select_update_data(X, neuron)
             if len(Y) != 0:
                 X = self.update_parameter(neuron, alpha, X, Y, Y_index)
-
-                # Attempt to merge neurons
                 self.merge_neuron(alpha, y)
             else:
-                break  # No data points assigned, exit the loop
+                break
 
         return X
 
     def find_and_capture(self, X, y):
-        """
-        Creates new neurons and updates their parameters until all data points are captured.
-
-        Args:
-            X: A numpy array of shape (n_samples, n_features) representing the data.
-            y: The class label of the neurons to create.
-
-        Returns:
-            The updated data array X (which should be empty if all points are captured).
-        """
-
         while len(X) != 0:
-            # Create a new neuron and add it to the neuron list
             X, neuron = self.create_new_neuron(X, y)
-            self.neuron_list = pd.concat([self.neuron_list, pd.DataFrame([neuron])], ignore_index=True)
-            alpha = self.neuron_list.index[-1]
+            self.neuron_list.append(neuron)
+            alpha = len(self.neuron_list) - 1
 
-            # Select data points and update neuron parameters
             Y, Y_index = self.select_update_data(X, neuron)
             if len(Y) != 0:
                 X = self.update_parameter(neuron, alpha, X, Y, Y_index)
@@ -176,20 +123,20 @@ class SCIL(VersatileEllipticBaseClassifier):
         return X
 
     def merge_neuron(self, alpha, y):
-        neuron_list_y = self.neuron_list.query(f'y=={y}')
-        if len(neuron_list_y) > 1:
-            cov_alpha = self.neuron_list.at[alpha,'cov']
-            cen_alpha = self.neuron_list.at[alpha,'center']
-            n_alpha = self.neuron_list.at[alpha,'n']
-            width_alpha = self.neuron_list.at[alpha,'width']
-            eig_c_alpha = self.neuron_list.at[alpha,'eig_component']
-            for beta in neuron_list_y.index:
-                cov_beta = self.neuron_list.at[beta,'cov']
-                cen_beta = self.neuron_list.at[beta,'center']
-                n_beta = self.neuron_list.at[beta,'n']
-                width_beta = self.neuron_list.at[beta,'width']
-                eig_c_beta = self.neuron_list.at[beta,'eig_component']
+        neurons_y_idx = [i for i, n in enumerate(self.neuron_list) if n['y'] == y]
+        if len(neurons_y_idx) > 1:
+            cov_alpha = self.neuron_list[alpha]['cov']
+            cen_alpha = self.neuron_list[alpha]['center']
+            n_alpha = self.neuron_list[alpha]['n']
+            width_alpha = self.neuron_list[alpha]['width']
+            eig_c_alpha = self.neuron_list[alpha]['eig_component']
+            for beta in neurons_y_idx:
                 if alpha != beta:
+                    cov_beta = self.neuron_list[beta]['cov']
+                    cen_beta = self.neuron_list[beta]['center']
+                    n_beta = self.neuron_list[beta]['n']
+                    width_beta = self.neuron_list[beta]['width']
+                    eig_c_beta = self.neuron_list[beta]['eig_component']
                     psi_alpha = self.hyperellipsoidal_fn(cen_alpha, cen_beta, eig_c_beta, width_beta)
                     psi_beta = self.hyperellipsoidal_fn(cen_beta, cen_alpha, eig_c_alpha, width_alpha)
                     if psi_alpha <= self.theta or psi_beta <= self.theta:
@@ -199,14 +146,14 @@ class SCIL(VersatileEllipticBaseClassifier):
                         eig_c_gamma, pca_var_gamma = self.compute_sorted_eigencomponent(cov_gamma)
 
                         width_gamma = np.array([1.96*np.sqrt(np.abs(pca_var_gamma[d])/n_gamma) for d in range(len(pca_var_gamma))])  # 1.96 = z-score for 95% CI
-                        self.neuron_list.at[beta,'n'] = n_gamma
-                        self.neuron_list.at[beta,'center'] = cen_gamma
-                        self.neuron_list.at[beta,'cov'] = cov_gamma
-                        self.neuron_list.at[beta,'eig_component'] = eig_c_gamma
-                        self.neuron_list.at[beta,'width'] = width_gamma
-                        self.neuron_list.at[beta,'variance'] = pca_var_gamma
+                        self.neuron_list[beta]['n'] = n_gamma
+                        self.neuron_list[beta]['center'] = cen_gamma
+                        self.neuron_list[beta]['cov'] = cov_gamma
+                        self.neuron_list[beta]['eig_component'] = eig_c_gamma
+                        self.neuron_list[beta]['width'] = width_gamma
+                        self.neuron_list[beta]['variance'] = pca_var_gamma
 
-                        self.neuron_list = self.neuron_list.drop(alpha,axis=0)
+                        self.neuron_list.pop(alpha)
                         break
 
     def fit(self, X, y, classes=None):
@@ -223,21 +170,15 @@ class SCIL(VersatileEllipticBaseClassifier):
     def partial_fit(self, X, y, classes=None):
         self.fit(X, y)
 
-    def predict(self,X):
-        neuron_list_test = self.neuron_list.query('n >= @self.N0').copy()
-        for idx in neuron_list_test.index:
-            variance = neuron_list_test.at[idx,'variance']
-            neuron_list_test.at[idx,'width'] = _SQRT_2PI * np.sqrt(variance)
-
-        distance = {}
-        for idx, neuron in enumerate(neuron_list_test.to_dict('records')):
+    def predict(self, X):
+        neurons_test = [n for n in self.neuron_list if n['n'] >= self.N0]
+        dist = np.empty((len(X), len(neurons_test)))
+        for idx, neuron in enumerate(neurons_test):
             center = neuron['center']
             eig_c = neuron['eig_component'].real
-            width = np.array(neuron['width']).reshape(len(center))
+            width = _SQRT_2PI * np.sqrt(neuron['variance']).reshape(len(center))
             x_centered = X - center
-            P_d_x = np.tensordot(x_centered, eig_c, axes=(1,1))
-            Psi = LA.norm(P_d_x/width,ord=2,axis=1)**2 - 1
-            distance[idx] = Psi
-        distance_df = pd.DataFrame(distance)
-        y_pred = neuron_list_test['y'].iloc[distance_df.idxmin(axis=1).values].values
+            P_d_x = np.tensordot(x_centered, eig_c, axes=(1, 1))
+            dist[:, idx] = LA.norm(P_d_x / width, ord=2, axis=1) ** 2 - 1
+        y_pred = np.array([n['y'] for n in neurons_test])[np.argmin(dist, axis=1)]
         return y_pred

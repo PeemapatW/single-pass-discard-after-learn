@@ -1,4 +1,6 @@
 deprecated/
 experiments/
+pdf/
 **/__pycache__/
 CLAUDE.md
+ALGORITHMS.md

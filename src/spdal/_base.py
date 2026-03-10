@@ -1,14 +1,15 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 import numpy.linalg as LA
 import scipy as sp
-import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.neighbors import NearestNeighbors
 
 _SQRT_2PI = np.sqrt(2 * np.pi)
 
 
-class HyperellipsoidBaseClassifier(BaseEstimator):
+class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
     def compute_sorted_eigencomponent(self, cov : np.ndarray):
         """
         Computes the sorted eigenvectors and eigenvalues of a covariance matrix.
@@ -45,21 +46,23 @@ class HyperellipsoidBaseClassifier(BaseEstimator):
             + (n_a * n_b) / n_c * np.outer(cen_a - cen_b, cen_a - cen_b)
         )
 
+    @abstractmethod
     def check_neuron_class_exist(self, y):
-        """
-        Checks if a neuron with the given class label 'y' exists in the neuron list.
+        """Returns True if a neuron with class label 'y' exists in neuron_list."""
 
-        Args:
-            y: The class label.
+    @abstractmethod
+    def set_classes(self):
+        """Sets self.classes_ from neuron_list."""
 
-        Returns:
-            True if a neuron with class 'y' exists, False otherwise.
-        """
 
-        return y in self.neuron_list['y'].values if len(self.neuron_list) > 0 else False
+class ListNeuronMixin:
+    """Mixin that overrides neuron_list base methods for list-of-dicts storage."""
+
+    def check_neuron_class_exist(self, y):
+        return any(n['y'] == y for n in self.neuron_list)
 
     def set_classes(self):
-        self.classes_ = np.unique(self.neuron_list["y"])
+        self.classes_ = np.unique([n['y'] for n in self.neuron_list])
 
 
 class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
@@ -101,20 +104,20 @@ class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
         return neuron
 
     def merge_neuron(self, alpha, y):
-        neuron_list_y = self.neuron_list.query(f'y=={y}')
-        if len(neuron_list_y) > 1:
-            cov_alpha = self.neuron_list.at[alpha,'cov']
-            cen_alpha = self.neuron_list.at[alpha,'center']
-            n_alpha = self.neuron_list.at[alpha,'n']
-            width_alpha = self.neuron_list.at[alpha,'width']
-            eig_c_alpha = self.neuron_list.at[alpha,'eig_component']
-            for beta in neuron_list_y.index:
-                cov_beta = self.neuron_list.at[beta,'cov']
-                cen_beta = self.neuron_list.at[beta,'center']
-                n_beta = self.neuron_list.at[beta,'n']
-                width_beta = self.neuron_list.at[beta,'width']
-                eig_c_beta = self.neuron_list.at[beta,'eig_component']
+        neurons_y_idx = [i for i, n in enumerate(self.neuron_list) if n['y'] == y]
+        if len(neurons_y_idx) > 1:
+            n_alpha = self.neuron_list[alpha]['n']
+            cov_alpha = self.neuron_list[alpha]['cov']
+            cen_alpha = self.neuron_list[alpha]['center']
+            width_alpha = self.neuron_list[alpha]['width']
+            eig_c_alpha = self.neuron_list[alpha]['eig_component']
+            for beta in neurons_y_idx:
                 if alpha != beta:
+                    cov_beta = self.neuron_list[beta]['cov']
+                    cen_beta = self.neuron_list[beta]['center']
+                    n_beta = self.neuron_list[beta]['n']
+                    width_beta = self.neuron_list[beta]['width']
+                    eig_c_beta = self.neuron_list[beta]['eig_component']
                     psi_alpha = self.hyperellipsoidal_fn(cen_alpha, cen_beta, eig_c_beta, width_beta)
                     psi_beta = self.hyperellipsoidal_fn(cen_beta, cen_alpha, eig_c_alpha, width_alpha)
                     if psi_alpha <= self.theta or psi_beta <= self.theta:
@@ -122,15 +125,13 @@ class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
                         cen_gamma = (n_alpha * cen_alpha + n_beta * cen_beta) / n_gamma
                         cov_gamma = self._merge_covariance(n_alpha, cov_alpha, cen_alpha, n_beta, cov_beta, cen_beta)
                         eig_c_gamma, pca_var_gamma = self.compute_sorted_eigencomponent(cov_gamma)
-
                         width_gamma = np.array([_SQRT_2PI*np.sqrt(np.abs(pca_var_gamma[d])) for d in range(len(pca_var_gamma))])
-                        self.neuron_list.at[beta,'n'] = n_gamma
-                        self.neuron_list.at[beta,'center'] = cen_gamma
-                        self.neuron_list.at[beta,'cov'] = cov_gamma
-                        self.neuron_list.at[beta,'eig_component'] = eig_c_gamma
-                        self.neuron_list.at[beta,'width'] = width_gamma
-
-                        self.neuron_list = self.neuron_list.drop(alpha,axis=0)
+                        self.neuron_list[beta]['n'] = n_gamma
+                        self.neuron_list[beta]['center'] = cen_gamma
+                        self.neuron_list[beta]['cov'] = cov_gamma
+                        self.neuron_list[beta]['eig_component'] = eig_c_gamma
+                        self.neuron_list[beta]['width'] = width_gamma
+                        self.neuron_list.pop(alpha)
                         break
 
 
@@ -191,7 +192,7 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
         Predicts class labels for data points using eigenprojection and distance calculations.
 
         Args:
-            neuron_list_test: A pandas DataFrame containing neuron data.
+            neuron_list_test: A list of neuron dicts.
             X: A numpy array of shape (n_samples, n_features) representing the data.
             argsort_dist: A numpy array of shape (n_samples, 2) containing the indices of the two
                             closest neurons for each data point.
@@ -207,8 +208,8 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
 
         for unique_pair in unique_top_two:
             mask = (top_two_index == unique_pair).all(axis=1)
-            if neuron_list_test.iloc[unique_pair[0]]["y"] == neuron_list_test.iloc[unique_pair[1]]["y"]:
-                y_pred[mask] = neuron_list_test.iloc[unique_pair[0]]["y"]
+            if neuron_list_test[unique_pair[0]]['y'] == neuron_list_test[unique_pair[1]]['y']:
+                y_pred[mask] = neuron_list_test[unique_pair[0]]['y']
             else:
                 x_unique_pair = X[mask]
 
@@ -228,10 +229,10 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
                     for y, x_centered, P, M in zip(unique_pair, x_centereds, Ps, Ms)
                 }
 
-                x_proj_dist_df = pd.DataFrame(x_proj_dist)
-                y_predict_unique_pair = neuron_list_test['y'].iloc[x_proj_dist_df.idxmin(axis=1).tolist()]
-
-                y_pred[mask] = y_predict_unique_pair
+                dist_matrix = np.column_stack([x_proj_dist[unique_pair[0]], x_proj_dist[unique_pair[1]]])
+                winner_col = np.argmin(dist_matrix, axis=1)
+                winner_idx = np.array(unique_pair)[winner_col]
+                y_pred[mask] = np.array([neuron_list_test[i]['y'] for i in winner_idx])
 
         return y_pred
 
@@ -293,28 +294,6 @@ class ScalableHyperelipsoidBaseClassifier(HyperellipsoidBaseClassifier):
             neigh1 = NearestNeighbors(n_neighbors=1, metric='euclidean').fit(X).kneighbors()[0]
             return np.mean(neigh1)
 
+    @abstractmethod
     def dist_ths_y_update(self, y):
-        """
-        Updates the distance threshold for a given class label 'y'.
-
-        Args:
-            y: The class label.
-        """
-
-        ths = self.dist_ths[y]
-        S = self.neuron_list
-
-        # Count neurons with 'n' < self.M and 'y' == y
-        m = np.sum((S['n'] < self.M) & (S['y'] == y))
-
-        # Check condition and update threshold
-        if m > len(S[S['y'] == y]) / 2:
-            self.dist_ths[y] = ths * 2
-
-    def discriminant_vector_between_two_shef(self,cen_1,cov_1,cen_2,cov_2):
-        cov = cov_1+cov_2
-        discriminant = np.matmul(LA.inv(cov),np.array([cen_1-cen_2]).T)
-        return discriminant/LA.norm(discriminant)
-
-    def projection_ration_distance(self,x,center,cov,wp):
-        return np.abs(np.matmul(wp.T,np.array([x-center]).T))/(self.r*np.sqrt(np.matmul(wp.T,np.matmul(cov,wp))))
+        """Updates the distance threshold for class label 'y'."""
