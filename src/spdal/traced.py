@@ -212,7 +212,12 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
                 merged, alpha = self.merge_neuron(alpha, y)
         return X
 
-    def fit(self, X, y, classes=None):
+    def fit(self, X, y, classes=None, _reset=True):
+        if _reset:
+            self.neuron_list = []
+            self.dist_ths = {}
+            self.count_overlap = 0
+            self.count_outside = 0
         all_class = np.unique(y)
         self.distance_init(X, y)
         for y_ in all_class:
@@ -224,7 +229,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
-        self.fit(X, y)
+        self.fit(X, y, _reset=False)
 
     def dist_ths_y_update(self, y):
         ths = self.dist_ths[y]

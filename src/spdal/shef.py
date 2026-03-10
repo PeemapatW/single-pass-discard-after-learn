@@ -71,7 +71,10 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
                 self.neuron_list[beta]['cov'] = cov_gamma
                 self.neuron_list.pop(alpha)
 
-    def fit(self, X, y, classes=None):
+    def fit(self, X, y, classes=None, _reset=True):
+        if _reset:
+            self.neuron_list = []
+            self.dist_ths = {}
         self.distance_init(X, y)
         for x_i, y_i in zip(X, y):
             if self.check_neuron_class_exist(y_i):
@@ -100,7 +103,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
-        self.fit(X, y)
+        self.fit(X, y, _reset=False)
 
     def _vectorized_discriminant_vector(self, c1, S1, c2, S2):
         """Calculates the discriminant vector between two SHEFs for a batch of neurons."""

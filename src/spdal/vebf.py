@@ -21,7 +21,10 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
             for y_ in new_class:
                 self.init_width[y_] = average_distance
 
-    def fit(self, X, y, classes=None):
+    def fit(self, X, y, classes=None, _reset=True):
+        if _reset:
+            self.neuron_list = []
+            self.init_width = {}
         self.width_init(X, y)
         for x_i, y_i in zip(X, y):
             if self.check_neuron_class_exist(y_i):
@@ -61,7 +64,7 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
-        self.fit(X, y)
+        self.fit(X, y, _reset=False)
 
     def predict(self, X):
         dist = np.empty((len(X), len(self.neuron_list)))

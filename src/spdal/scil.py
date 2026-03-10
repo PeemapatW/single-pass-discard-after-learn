@@ -156,7 +156,10 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
                         self.neuron_list.pop(alpha)
                         break
 
-    def fit(self, X, y, classes=None):
+    def fit(self, X, y, classes=None, _reset=True):
+        if _reset:
+            self.neuron_list = []
+            self.init_width = {}
         all_class = np.unique(y)
         self.width_init(X, y)
         for y_ in all_class:
@@ -168,7 +171,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
-        self.fit(X, y)
+        self.fit(X, y, _reset=False)
 
     def predict(self, X):
         neurons_test = [n for n in self.neuron_list if n['n'] >= self.N0]

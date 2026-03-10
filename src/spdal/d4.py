@@ -33,7 +33,10 @@ class D4(ListNeuronMixin, VersatileEllipticBaseClassifier, PrincipleProjectionBa
         neuron = {'y': y, 'cov': cov, 'center': cen, 'eig_component': eig_c, 'width': width, 'variance': pca_var, 'n': n}
         return neuron
 
-    def fit(self, X, y, classes=None):
+    def fit(self, X, y, classes=None, _reset=True):
+        if _reset:
+            self.neuron_list = []
+            self.init_width = {}
         all_class = np.unique(y)
         self.width_init(X, y)
         for y_ in all_class:
@@ -70,7 +73,7 @@ class D4(ListNeuronMixin, VersatileEllipticBaseClassifier, PrincipleProjectionBa
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
-        self.fit(X, y)
+        self.fit(X, y, _reset=False)
 
     def get_neuron_data(self, neuron_list, idx):
         neuron = neuron_list[idx]
