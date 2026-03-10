@@ -5,6 +5,32 @@ from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin, _SQRT_2PI
 
 
 class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
+    """Scalable Collaborative Incremental Learning (SCIL).
+
+    Batch-oriented variant: processes all samples of one class at a time rather
+    than one sample at a time. Uses a three-phase loop per class:
+      1. create_and_update — seeds the first neuron and absorbs nearby points.
+      2. find_and_update   — assigns remaining points to existing neurons.
+      3. find_and_capture  — creates additional neurons for uncaptured points.
+
+    Overrides merge_neuron to use the 95%-CI width formula (1.96 * sqrt(|λ|/n)).
+    Overrides create_new_neuron to accept a batch X instead of a single point.
+    predict() filters neurons with n < N0 before scoring.
+
+    Parameters
+    ----------
+    N0 : int
+        Minimum sample count for a neuron to be used in predict().
+    eta : float
+        Width expansion factor when a batch still has points outside after update.
+    delta : float
+        Scaling factor for initial pairwise-distance width.
+    epsilon : float
+        Numerical floor added to widths and eigenvalues.
+    theta : float
+        Overlap threshold for merge_neuron.
+    """
+
     def __init__(self, N0=3, eta=2, delta=1, epsilon=1e-10, theta=0):
         self.neuron_list = []
         self.init_width = {}
@@ -15,6 +41,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.epsilon = epsilon
 
     def width_init(self, X, y):
+        """Initialises width using a single global average pairwise distance (same as VEBF)."""
         all_class = np.unique(y)
         exist_class = set(self.init_width.keys())
         new_class = set(all_class) - exist_class
@@ -24,6 +51,10 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
                 self.init_width[y_] = average_distance
 
     def create_new_neuron(self, X, y):
+        """Seeds a new neuron at X[0], removes it from X, and returns (X_remaining, neuron).
+
+        Overrides the base class signature — takes a batch X rather than a single point.
+        """
         select_index = 0
         cen = X[select_index, :]
         cov = np.zeros([len(cen)]*2)
@@ -36,6 +67,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return X_, neuron
 
     def select_update_data(self, X, neuron):
+        """Returns (Y, Y_index): rows of X that fall inside the neuron's ellipsoid after a tentative center update."""
         center = neuron["center"]
         eig_c = neuron["eig_component"]
         width = neuron['width'] + self.epsilon
@@ -52,6 +84,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return Y, Y_index
 
     def update_parameter(self, neuron, alpha, X, Y, Y_index):
+        """Absorbs batch Y into neuron alpha, updates cov/center/width/variance, returns X without Y."""
         cen_alpha = neuron["center"]
         cov_alpha = neuron["cov"]
         n_alpha = neuron["n"]
@@ -85,6 +118,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return X_new
 
     def create_and_update(self, X, y):
+        """Seeds the first neuron for class y, absorbs nearby points, returns remaining X."""
         X, neuron = self.create_new_neuron(X, y)
         self.neuron_list.append(neuron)
         alpha = len(self.neuron_list) - 1
@@ -96,6 +130,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return X
 
     def find_and_update(self, X, y):
+        """Iteratively assigns remaining X to the nearest existing neuron of class y until no point fits."""
         while len(X) != 0:
             neurons_y = [(i, n) for i, n in enumerate(self.neuron_list) if n['y'] == y]
             x_mean = np.mean(X, axis=0)
@@ -111,6 +146,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return X
 
     def find_and_capture(self, X, y):
+        """Creates new neurons one at a time until all remaining X is captured."""
         while len(X) != 0:
             X, neuron = self.create_new_neuron(X, y)
             self.neuron_list.append(neuron)
@@ -123,6 +159,11 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return X
 
     def merge_neuron(self, alpha, y):
+        """Merges neuron alpha with an overlapping same-class neuron using the 95%-CI width formula.
+
+        Width formula: 1.96 * sqrt(|λ| / n), where λ are merged eigenvalues and n is merged count.
+        Overrides the base class which uses sqrt(2π * |λ|).
+        """
         neurons_y_idx = [i for i, n in enumerate(self.neuron_list) if n['y'] == y]
         if len(neurons_y_idx) > 1:
             cov_alpha = self.neuron_list[alpha]['cov']
@@ -157,6 +198,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
                         break
 
     def fit(self, X, y, classes=None, _reset=True):
+        """Train on X, y using the three-phase SCIL loop per class. Resets unless _reset=False."""
         if _reset:
             self.neuron_list = []
             self.init_width = {}
@@ -171,9 +213,11 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
+        """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
     def predict(self, X):
+        """Predicts class labels using only mature neurons (n >= N0)."""
         neurons_test = [n for n in self.neuron_list if n['n'] >= self.N0]
         dist = np.empty((len(X), len(neurons_test)))
         for idx, neuron in enumerate(neurons_test):

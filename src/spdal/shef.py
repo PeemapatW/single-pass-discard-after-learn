@@ -5,6 +5,27 @@ from ._base import ScalableHyperelipsoidBaseClassifier
 
 
 class SHEF(ScalableHyperelipsoidBaseClassifier):
+    """Scalable Hyperellipsoidal Ensemble Fusion (SHEF).
+
+    Uses median nearest-neighbour distance as a creation threshold: a new neuron
+    is spawned only when x_i is farther than dist_ths[y] from all existing neurons.
+    Neurons store only center and covariance (no eigenvectors/widths). Prediction
+    uses a projection distance and a two-stage tie-breaking rule:
+      1. If both top neurons belong to the same class → assign directly.
+      2. If only the closest neuron is inside its ellipsoid → assign to it.
+      3. Otherwise compute a discriminant vector w = inv(S1+S2)(c2-c1) and assign
+         to the neuron with smaller projection ratio distance.
+
+    Parameters
+    ----------
+    M : int
+        Minimum sample count before a neuron is eligible for merging.
+    r : float
+        Ellipsoid radius scaling factor used in projection-distance calculations.
+    epsilon : float
+        Numerical floor to avoid division by zero.
+    """
+
     def __init__(self, M = 3, r = 1.5, epsilon=1e-10):
         self.neuron_list = []
         self.dist_ths = {}
@@ -13,12 +34,19 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         self.epsilon = epsilon
 
     def check_neuron_class_exist(self, y):
+        """Returns True if at least one neuron with class label y exists."""
         return any(n['y'] == y for n in self.neuron_list)
 
     def set_classes(self):
+        """Sets self.classes_ from neuron_list (ListNeuronMixin equivalent for SHEF)."""
         self.classes_ = np.unique([n['y'] for n in self.neuron_list])
 
     def dist_ths_y_update(self, y):
+        """Doubles dist_ths[y] if more than half the neurons for class y have n < M.
+
+        Called after adding a new neuron to adaptively widen the creation threshold
+        when the model is still young (many small neurons exist).
+        """
         ths = self.dist_ths[y]
         neurons_y = [n for n in self.neuron_list if n['y'] == y]
         m = sum(1 for n in neurons_y if n['n'] < self.M)
@@ -26,6 +54,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
             self.dist_ths[y] = ths * 2
 
     def create_new_neuron(self, x_i, y_i):
+        """Creates a neuron with only center, cov (epsilon*I), and n=1 — no eig/width fields."""
         cen = x_i
         cov = np.zeros([len(x_i), len(x_i)]) + np.identity(len(x_i)) * self.epsilon
         n = 1
@@ -33,6 +62,13 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         return neuron
 
     def merge_neuron(self, alpha, y):
+        """Merges neuron alpha with its nearest same-class neighbour if their ellipsoids overlap.
+
+        Overlap is determined via eigenvalues of a block matrix P constructed from the two
+        covariances scaled by r². A merge occurs when P has complex eigenvalues, repeated
+        eigenvalues, or any negative eigenvalue — indicating geometric intersection.
+        Only triggers when alpha has grown past M samples.
+        """
         neurons_y_idx = [i for i, n in enumerate(self.neuron_list) if n['y'] == y]
         n_alpha = self.neuron_list[alpha]['n']
         cen_alpha = self.neuron_list[alpha]['center']
@@ -72,6 +108,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
                 self.neuron_list.pop(alpha)
 
     def fit(self, X, y, classes=None, _reset=True):
+        """Train on X, y. Resets all state first unless _reset=False (used by partial_fit)."""
         if _reset:
             self.neuron_list = []
             self.dist_ths = {}
@@ -103,6 +140,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
+        """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
     def _vectorized_discriminant_vector(self, c1, S1, c2, S2):
@@ -123,6 +161,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         return numerator / denominator
 
     def predict(self, X):
+        """Predicts class labels using Mahalanobis projection distance with three-stage tie-breaking."""
         if len(self.neuron_list) == 1:
             return np.array([self.neuron_list[0]['y']] * len(X))
 

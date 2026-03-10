@@ -5,6 +5,27 @@ from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin
 
 
 class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
+    """Learning Rule for Hyperellipsoid Expansion (LRHE).
+
+    Grows hyperellipsoid neurons one sample at a time. For each incoming
+    sample of class y, finds the nearest same-class neuron and checks whether
+    a temporary updated center still covers the sample. If yes, updates the
+    neuron; otherwise creates a new one. Competing neurons from other classes
+    that cover the sample are shifted and shrunk away. After each update or
+    creation, overlapping same-class neurons are merged.
+
+    Parameters
+    ----------
+    alpha : float
+        Minimum-width factor used in shift_and_shrink_neuron (width floor = alpha * current_width).
+    theta : float
+        Overlap threshold for merge_neuron (merge when psi <= theta).
+    delta : float
+        Scaling factor for initial pairwise-distance width.
+    epsilon : float
+        Numerical floor added to widths and eigenvalues.
+    """
+
     def __init__(self, alpha=0.5, theta=0, delta=1, epsilon=1e-10):
         self.neuron_list = []
         self.init_width = {}
@@ -14,6 +35,7 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.epsilon = epsilon
 
     def fit(self, X, y, classes=None, _reset=True):
+        """Train on X, y. Resets all state first unless _reset=False (used by partial_fit)."""
         if _reset:
             self.neuron_list = []
             self.init_width = {}
@@ -59,9 +81,11 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
+        """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
     def predict(self, X):
+        """Predicts class labels by finding the nearest neuron (min hyperellipsoidal distance)."""
         dist = np.empty((len(X), len(self.neuron_list)))
         for idx, neuron in enumerate(self.neuron_list):
             center = neuron['center']
@@ -74,6 +98,12 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         return y_pred
 
     def shift_and_shrink_neuron(self, x_i, y_i, psi_xi):
+        """Shrinks and shifts competing neurons (different class) that cover x_i.
+
+        For each neuron of a different class that contains x_i (psi_idx <= 0) and
+        overlaps more than the nearest same-class neuron (psi_idx <= psi_xi), updates
+        its width (shrink, floored at alpha * current_width) and shifts its center away.
+        """
         for idx, neuron in enumerate(self.neuron_list):
             if neuron['y'] != y_i:
                 cen_idx = neuron['center']

@@ -10,6 +10,13 @@ _SQRT_2PI = np.sqrt(2 * np.pi)
 
 
 class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
+    """Root base class for all hyperellipsoid classifiers.
+
+    Inherits sklearn's BaseEstimator (provides get_params/set_params).
+    Subclasses must define self.epsilon in __init__ and implement
+    check_neuron_class_exist() and set_classes().
+    """
+
     def compute_sorted_eigencomponent(self, cov : np.ndarray):
         """
         Computes the sorted eigenvectors and eigenvalues of a covariance matrix.
@@ -38,7 +45,11 @@ class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
         return eig_c.real, pca_var.real
 
     def _merge_covariance(self, n_a, cov_a, cen_a, n_b, cov_b, cen_b):
-        """Computes the merged covariance of two neuron populations."""
+        """Merges covariances of two neuron populations using the parallel-axis theorem.
+
+        Combines n_a samples (cov_a, cen_a) with n_b samples (cov_b, cen_b)
+        into a single pooled covariance for the merged neuron.
+        """
         n_c = n_a + n_b
         return (1 / n_c) * (
             n_a * cov_a
@@ -56,16 +67,27 @@ class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
 
 
 class ListNeuronMixin:
-    """Mixin that overrides neuron_list base methods for list-of-dicts storage."""
+    """Mixin that overrides neuron_list base methods for list-of-dicts storage.
+
+    Must appear first in the MRO (before VersatileEllipticBaseClassifier or
+    ScalableHyperelipsoidBaseClassifier) so its implementations take priority.
+    """
 
     def check_neuron_class_exist(self, y):
+        """Returns True if at least one neuron with class label y exists."""
         return any(n['y'] == y for n in self.neuron_list)
 
     def set_classes(self):
+        """Sets self.classes_ to a sorted array of all unique class labels in neuron_list."""
         self.classes_ = np.unique([n['y'] for n in self.neuron_list])
 
 
 class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
+    """Base class for classifiers that use hyperellipsoid neurons with pairwise-distance width init.
+
+    Provides: width initialisation, the hyperellipsoidal decision function,
+    neuron creation, and neuron merging logic. Used by LRHE, VEBF, SCIL, D4, TRACED.
+    """
 
     def width_init(self, X, y):
         """
@@ -85,16 +107,30 @@ class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
             self.init_width[y_] = self.average_pairwise_distance(Xy)
 
     def average_pairwise_distance(self, X):
+        """Returns a d-dimensional width vector whose value is delta * (mean pairwise distance).
+
+        Used as the initial width when a class is first seen.
+        The same scalar is broadcast to all d dimensions.
+        """
         n, d = X.shape
         return np.array([self.delta/(n**2)*sum(sp.spatial.distance.pdist(X))*2]*d)
 
     def hyperellipsoidal_fn(self, x, center, eig_c, width):
+        """Evaluates the hyperellipsoidal membership function for a single point x.
+
+        Returns (||P(x-center) / (width+epsilon)||² - 1), where P is the eigenvector
+        projection matrix. A value <= 0 means x lies inside the ellipsoid.
+        """
         x_centered = x - center
         Margin = width + self.epsilon
         P_d_x = x_centered @ eig_c.T
         return (LA.norm(P_d_x/Margin,ord=2))**2-1
 
     def create_new_neuron(self, x_i, y_i):
+        """Creates a new neuron centred at x_i with identity covariance/eigenvectors and n=1.
+
+        Initial width is taken from self.init_width[y_i] (set during width_init).
+        """
         cen = x_i
         cov = np.identity(len(x_i))
         width = self.init_width[y_i]
@@ -104,6 +140,13 @@ class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
         return neuron
 
     def merge_neuron(self, alpha, y):
+        """Attempts to merge neuron alpha with any overlapping neuron of the same class y.
+
+        For each other neuron beta of class y, checks if either center lies inside the
+        other's ellipsoid (psi <= theta). If so, merges the two into beta using the pooled
+        covariance, removes alpha, and stops. SCIL overrides this method with a different
+        width formula.
+        """
         neurons_y_idx = [i for i, n in enumerate(self.neuron_list) if n['y'] == y]
         if len(neurons_y_idx) > 1:
             n_alpha = self.neuron_list[alpha]['n']
@@ -136,13 +179,31 @@ class VersatileEllipticBaseClassifier(HyperellipsoidBaseClassifier):
 
 
 class PrincipleProjectionBaseClassifier(BaseEstimator):
+    """Base class for classifiers that resolve overlapping-class regions via eigenvector projection.
+
+    Used by D4 and TRACED. When two closest neurons belong to different classes,
+    prediction is broken by projecting each point onto paired principal axes and
+    comparing distances in that reduced subspace.
+    """
+
     def angle_between_unit_vectors(self, v1, v2):
+        """Computes pairwise acute angles (degrees) between rows of two unit-vector arrays.
+
+        Returns an (m x n) matrix where entry [i,j] is the acute angle between v1[i] and v2[j].
+        """
         dot_product = np.einsum('ij,kj->ik', v1, v2)
         angle = np.arccos(np.clip(dot_product, -1, 1))
         return np.minimum(angle, np.pi - angle) * 180 / np.pi
 
     def find_index_pairs(self, arr):
+        """Selects (rows - reduce_dims) non-conflicting (row, col) pairs from an angle matrix.
+
+        Greedy: picks pairs with the smallest angle first, ensuring each row and column
+        is used at most once. Fills remaining slots with leftover indices if needed.
+        TRACED overrides this to return the transposed shape (2, k) instead of (k, 2).
+        """
         rows, cols = arr.shape
+        n_pairs = max(1, rows - self.reduce_dims)
 
         # Create a list of (value, row, col) tuples for elements below threshold
         flat_list = [(val, i // cols, i % cols) for i, val in enumerate(arr.ravel()) if val <= self.threshold]
@@ -158,15 +219,15 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
                 result.append((row, col))
                 used_rows.add(row)
                 used_cols.add(col)
-                if len(result) == self.max_d:
+                if len(result) == n_pairs:
                     break
-        if len(result) < self.max_d:
+        if len(result) < n_pairs:
             all_rows = set(range(rows))
             all_cols = set(range(cols))
             remaining_rows = sorted(all_rows - used_rows, reverse=True)
             remaining_cols = sorted(all_cols - used_cols, reverse=True)
             remaining_pairs = list(zip(remaining_rows, remaining_cols))
-            result.extend(remaining_pairs[:self.max_d - len(result)])
+            result.extend(remaining_pairs[:n_pairs - len(result)])
 
         return np.array(result)
 
@@ -188,8 +249,13 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
         return (LA.norm(P_d_x / M, ord=norm, axis=1)) - self.r  # Calculate distance
 
     def predict_with_eigen_proj(self, neuron_list_test, X, argsort_dist):
-        """
-        Predicts class labels for data points using eigenprojection and distance calculations.
+        """Predicts class labels using eigenprojection for cross-class neuron pairs.
+
+        For each point:
+        - If the two closest neurons share the same class, assign that class directly.
+        - Otherwise, pair up their principal axes by smallest angle, project the point,
+          and assign the class of whichever neuron's projected distance is smaller.
+        Wraps the inner logic of predict() for D4 and TRACED.
 
         Args:
             neuron_list_test: A list of neuron dicts.
@@ -238,6 +304,11 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
 
 
 class ScalableHyperelipsoidBaseClassifier(HyperellipsoidBaseClassifier):
+    """Base class for classifiers that use nearest-neighbour distance thresholds.
+
+    Instead of pairwise distances, uses median/mean NN distance per class
+    as the creation threshold. Used by SHEF and TRACED.
+    """
 
     def distance_init(self, X, y):
         """

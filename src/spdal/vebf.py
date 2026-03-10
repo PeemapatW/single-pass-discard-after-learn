@@ -5,6 +5,23 @@ from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin
 
 
 class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
+    """Versatile Elliptic Basis Function (VEBF) classifier.
+
+    Simplified variant of LRHE: no shift-and-shrink step. A single global
+    average pairwise distance (computed over all classes together) is used as
+    the initial width for every new class, rather than a per-class distance.
+    Otherwise follows the same create-or-update-then-merge pattern per sample.
+
+    Parameters
+    ----------
+    theta : float
+        Overlap threshold for merge_neuron.
+    delta : float
+        Scaling factor for initial pairwise-distance width.
+    epsilon : float
+        Numerical floor added to widths and eigenvalues.
+    """
+
     def __init__(self, theta=0, delta=1, epsilon=1e-10):
         self.neuron_list = []
         self.init_width = {}
@@ -13,6 +30,11 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.epsilon = epsilon
 
     def width_init(self, X, y):
+        """Initialises width for new classes using a single global average pairwise distance.
+
+        Unlike the base class (which computes per-class distance), VEBF uses one distance
+        value computed over the entire batch X, then assigns it to all new classes.
+        """
         all_class = np.unique(y)
         exist_class = set(self.init_width.keys())
         new_class = set(all_class) - exist_class
@@ -22,6 +44,7 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
                 self.init_width[y_] = average_distance
 
     def fit(self, X, y, classes=None, _reset=True):
+        """Train on X, y. Resets all state first unless _reset=False (used by partial_fit)."""
         if _reset:
             self.neuron_list = []
             self.init_width = {}
@@ -64,9 +87,11 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
         self.set_classes()
 
     def partial_fit(self, X, y, classes=None):
+        """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
     def predict(self, X):
+        """Predicts class labels by finding the nearest neuron (min hyperellipsoidal distance)."""
         dist = np.empty((len(X), len(self.neuron_list)))
         for idx, neuron in enumerate(self.neuron_list):
             center = neuron['center']

@@ -2,7 +2,16 @@ import numpy as np
 
 
 def get_axis_edge_points(center, axes, widths):
-    """Generates edge points for each axis."""
+    """Returns the two boundary points (center ± width*axis) for each principal axis.
+
+    Args:
+        center (np.ndarray): Center vector of the hyperellipsoid.
+        axes (np.ndarray): 2-D array where each row is an eigenvector (principal axis).
+        widths (np.ndarray): 1-D array of semi-axis lengths.
+
+    Returns:
+        np.ndarray: Shape (n_axes, 2, n_features) — pairs of [negative_end, positive_end].
+    """
     edge_points = []
     for i in range(len(axes)):
         edge_points.append([center - widths[i] * axes[i],center + widths[i] * axes[i]])
