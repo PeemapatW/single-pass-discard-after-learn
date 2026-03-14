@@ -4,7 +4,7 @@
 
 Each training sample is processed once and then discarded. No full dataset is ever stored. All classifiers implement scikit-learn's `partial_fit` / `predict` interface.
 
-> **Corrigendum:** Theorem 2 of the D4 paper contains a sign error. See the correction and revised theoretical mechanism: [Markdown](docs/D4_corrigendum.md) · [PDF](docs/D4_corrigendum.pdf)
+> **Corrigendum:** Theorem 2 of the D4 paper contains a sign error. See the correction and revised theoretical mechanism: [Markdown](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_corrigendum.md) · [PDF](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_corrigendum.pdf)
 
 ---
 
@@ -65,7 +65,7 @@ print(clf.predict(X[400:]))
 | `SCIL` | Streaming Chunk Incremental Learning | 2019 | Neuron merging with parallel-axis covariance pooling |
 | `SHEF` | Scalable Hyper-Ellipsoidal Function | 2020 | Regularized covariance + Mahalanobis-based prediction |
 | `D4`  | Diversion of Data Distribution Direction | 2026 | Hybrid width formula; principal-axis projection for coincident regions |
-| `TRACED` | Trend-Adaptive Classification with Ellipsoidal Disambiguation | TBD | Adds EMA displacement/expansion tracking for exterior-region prediction |
+| `TRACED` | Trend-Adaptive Classification with Ellipsoidal Disambiguation | 2026 | Adds EMA displacement/expansion tracking for exterior-region prediction |
 
 ### VEBF
 
@@ -234,12 +234,12 @@ pip install build && python -m build
 3. **SCIL** — Junsawang, P., Phimoltares, S., & Lursinsap, C. (2019). Streaming chunk incremental learning for class-wise data stream classification with fast learning speed and low structural complexity. *PLOS ONE*, 14(9), e0220624.
 4. **SHEF** — Rungcharassang, P., & Lursinsap, C. (2020). Scalable Hyper-Ellipsoidal Function with Projection Ratio for Local Distributed Streaming Data Classification. *IEEE Access*. DOI: 10.1109/ACCESS.2020.2997944.
 5. **D4** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. (2026). Markov-based continuous learning with diversion of data distribution direction for streaming data in limited memory. *Expert Systems With Applications*, 298, 129818.
-   - Corrigendum (Theorem 2): [docs/D4_corrigendum.md](docs/D4_corrigendum.md) · [PDF](docs/D4_corrigendum.pdf)
-6. **TRACED** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. TRACED: Trend-Adaptive Classification with Ellipsoidal Disambiguation for Resolving Exterior and Coincident Regions in Data Streams. *Preprint submitted to Elsevier*.
+   - Corrigendum (Theorem 2): [docs/D4_corrigendum.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_corrigendum.md) · [PDF](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_corrigendum.pdf)
+6. **TRACED** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. (2026). TRACED: Trend-Adaptive Classification with Ellipsoidal Disambiguation for Resolving Exterior and Coincident Regions in Data Streams. *Information Sciences*,743, 123338.
 
 ---
 
 ## Notes
 
-- The original monolithic implementation is preserved at [`deprecated/spdal.py`](deprecated/spdal.py) for reference.
+- The original monolithic implementation is preserved at [`deprecated/spdal.py`](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/deprecated/spdal.py) for reference.
 - Refactoring into the modular `src/spdal/` package structure, docstrings, and parameter naming were performed by Claude (Anthropic) and reviewed by the project owner.
