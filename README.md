@@ -232,6 +232,7 @@ pip install build && python -m build
 3. **SCIL** — Junsawang, P., Phimoltares, S., & Lursinsap, C. (2019). Streaming chunk incremental learning for class-wise data stream classification with fast learning speed and low structural complexity. *PLOS ONE*, 14(9), e0220624.
 4. **SHEF** — Rungcharassang, P., & Lursinsap, C. (2020). Scalable Hyper-Ellipsoidal Function with Projection Ratio for Local Distributed Streaming Data Classification. *IEEE Access*. DOI: 10.1109/ACCESS.2020.2997944.
 5. **D4** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. (2026). Markov-based continuous learning with diversion of data distribution direction for streaming data in limited memory. *Expert Systems With Applications*, 298, 129818.
+   - Corrigendum (Theorem 2): [docs/D4_corrigendum.md](docs/D4_corrigendum.md) · [PDF](docs/D4_corrigendum.pdf)
 6. **TRACED** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. TRACED: Trend-Adaptive Classification with Ellipsoidal Disambiguation for Resolving Exterior and Coincident Regions in Data Streams. *Preprint submitted to Elsevier*.
 
 ---
