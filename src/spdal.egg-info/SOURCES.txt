@@ -1,9 +1,11 @@
+README.md
 pyproject.toml
 src/spdal/__init__.py
 src/spdal/_base.py
 src/spdal/_utils.py
-src/spdal/lrhe.py
 src/spdal/d4.py
+src/spdal/lrhe.py
+src/spdal/ppvh.py
 src/spdal/scil.py
 src/spdal/shef.py
 src/spdal/traced.py
@@ -16,3 +18,5 @@ src/spdal.egg-info/top_level.txt
 tests/test_classifiers.py
 tests/test_edge_cases.py
 tests/test_hyperparams.py
+tests/test_phishing.py
+tests/test_shef_formula.py

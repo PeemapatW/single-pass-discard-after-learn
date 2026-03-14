@@ -1,5 +1,7 @@
 experiments/
 pdf/
+data/
 **/__pycache__/
 CLAUDE.md
 ALGORITHMS.md
+examples/example.ipynb

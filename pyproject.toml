@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spdal"
 version = "0.1.0"
-description = "Single-pass discard-after-learn hyperellipsoid classifiers for online learning"
+description = "Single-pass and discard-after-learn hyperellipsoid classifiers for online learning"
 requires-python = ">=3.9"
 dependencies = [
     "scikit-learn>=1.3",
