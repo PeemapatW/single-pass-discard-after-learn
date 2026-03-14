@@ -4,6 +4,8 @@
 
 Each training sample is processed once and then discarded. No full dataset is ever stored. All classifiers implement scikit-learn's `partial_fit` / `predict` interface.
 
+> **Corrigendum:** Theorem 2 of the D4 paper contains a sign error. See the correction and revised theoretical mechanism: [Markdown](docs/D4_corrigendum.md) · [PDF](docs/D4_corrigendum.pdf)
+
 ---
 
 ## Installation
