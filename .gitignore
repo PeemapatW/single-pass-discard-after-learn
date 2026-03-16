@@ -4,4 +4,6 @@ data/
 **/__pycache__/
 CLAUDE.md
 ALGORITHMS.md
+docs/D4_corrigendum.tex
+docs/D4_corrigendum.pdf
 examples/example.ipynb
