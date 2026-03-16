@@ -134,7 +134,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         while len(X) != 0:
             neurons_y = [(i, n) for i, n in enumerate(self.neuron_list) if n['y'] == y]
             x_mean = np.mean(X, axis=0)
-            alpha, neuron = min(neurons_y, key=lambda t: LA.norm(x_mean - t[1]['center']))
+            alpha, neuron = min(neurons_y, key=lambda t: self.hyperellipsoidal_fn(x_mean, t[1]['center'], t[1]['eig_component'], t[1]['width']))
 
             Y, Y_index = self.select_update_data(X, neuron)
             if len(Y) != 0:
