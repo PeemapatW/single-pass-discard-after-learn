@@ -990,23 +990,18 @@ class TestD4Numerics:
 
 
 class TestD4HyperparamParity:
-    """D4: verify renamed parameters produce same results as deprecated equivalents.
+    """D4: verify various hyperparameter values produce same results between new and deprecated."""
 
-    Parameter mapping (new → deprecated):
-        width_parameter → alpha
-        reduce_dims     → max_d  (semantic: n_pairs = n_features - reduce_dims)
-    """
-
-    @pytest.mark.parametrize("new_params,dep_params", [
-        ({"width_parameter": 0.5}, {"alpha": 0.5}),
-        ({"delta": 2}, {"delta": 2}),
-        ({"width_parameter": 0.5, "delta": 2}, {"alpha": 0.5, "delta": 2}),
+    @pytest.mark.parametrize("params", [
+        {"width_parameter": 0.5},
+        {"delta": 2},
+        {"width_parameter": 0.5, "delta": 2},
     ])
-    def test_neurons_iris(self, iris_data, dep_module, new_params, dep_params):
+    def test_neurons_iris(self, iris_data, dep_module, params):
         X_train, _, y_train = iris_data
-        clf_new = D4(**new_params)
+        clf_new = D4(**params)
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.D4(**dep_params)
+        clf_dep = dep_module.D4(**params)
         clf_dep.fit(X_train, y_train)
         _assert_neurons_close(
             _sorted_neurons(clf_new.neuron_list),
@@ -1014,38 +1009,36 @@ class TestD4HyperparamParity:
             fields=['center', 'cov', 'width', 'eig_component', 'variance'],
         )
 
-    @pytest.mark.parametrize("new_params,dep_params", [
-        ({"width_parameter": 0.5}, {"alpha": 0.5}),
-        ({"delta": 2}, {"delta": 2}),
-        ({"width_parameter": 0.5, "delta": 2}, {"alpha": 0.5, "delta": 2}),
+    @pytest.mark.parametrize("params", [
+        {"width_parameter": 0.5},
+        {"delta": 2},
+        {"width_parameter": 0.5, "delta": 2},
     ])
-    def test_accuracy_iris(self, iris_data, dep_module, new_params, dep_params):
+    def test_accuracy_iris(self, iris_data, dep_module, params):
         X_train, X_test, y_train = iris_data
-        clf_new = D4(**new_params)
+        clf_new = D4(**params)
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.D4(**dep_params)
+        clf_dep = dep_module.D4(**params)
         clf_dep.fit(X_train, y_train)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
     @pytest.mark.parametrize("reduce_dims", [1, 2])
     def test_accuracy_reduce_dims_iris(self, iris_data, dep_module, reduce_dims):
-        """reduce_dims=k matches deprecated max_d=(n_features - k) for 4-feature iris."""
+        """reduce_dims=k: both new and deprecated use the same parameter name."""
         X_train, X_test, y_train = iris_data
-        n_features = X_train.shape[1]
         clf_new = D4(reduce_dims=reduce_dims)
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.D4(max_d=n_features - reduce_dims)
+        clf_dep = dep_module.D4(reduce_dims=reduce_dims)
         clf_dep.fit(X_train, y_train)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
     @pytest.mark.parametrize("reduce_dims", [1, 2])
     def test_accuracy_reduce_dims_multiclass(self, multiclass_data, dep_module, reduce_dims):
-        """reduce_dims=k matches deprecated max_d=(n_features - k) for 20-feature data."""
+        """reduce_dims=k: both new and deprecated use the same parameter name."""
         X_train, X_test, y_train, classes = multiclass_data
-        n_features = X_train.shape[1]
         clf_new = D4(reduce_dims=reduce_dims)
         clf_new.partial_fit(X_train, y_train, classes=classes)
-        clf_dep = dep_module.D4(max_d=n_features - reduce_dims)
+        clf_dep = dep_module.D4(reduce_dims=reduce_dims)
         clf_dep.partial_fit(X_train, y_train, classes=classes)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 

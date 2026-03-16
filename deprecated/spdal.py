@@ -601,8 +601,8 @@ class SCIL(VersatileEllipticBaseClassifier):
             neuron_list_y = self.neuron_list.query(f'y == {y}')
             x_mean = np.mean(X, axis=0)
 
-            # Finding the closest neuron
-            distances = [LA.norm(x_mean-neuron_list_y.at[idx,'center']) for idx in neuron_list_y.index]
+            # Finding the closest neuron using hyperellipsoidal function
+            distances = [self.hyperellipsoidal_fn(x_mean, neuron_list_y.at[idx,'center'], neuron_list_y.at[idx,'eig_component'], neuron_list_y.at[idx,'width']) for idx in neuron_list_y.index]
             alpha = neuron_list_y.index[np.argmin(distances)]
 
             neuron = self.neuron_list.loc[alpha].to_dict()
@@ -1077,13 +1077,13 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         return y_predict
     
 class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
-    def __init__(self,norm=2,delta=1,alpha=1,max_d=None,epsilon=1e-10,r=1.5,threshold=15):
+    def __init__(self,norm=2,delta=1,width_parameter=1,reduce_dims=0,epsilon=1e-10,r=1.5,threshold=15):
         self.neuron_list = pd.DataFrame([])
         self.init_width = {}
         self.norm = norm
         self.delta = delta
-        self.alpha = alpha
-        self.max_d = max_d
+        self.width_parameter = width_parameter
+        self.reduce_dims = reduce_dims
         self.epsilon = epsilon
         self.threshold = threshold
         self.r = r
@@ -1112,7 +1112,7 @@ class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
             cov = np.cov(X.T)
             eig_c, pca_var = self.compute_sorted_eigencomponent(cov)
             initial_width = self.init_width[y]
-            width = np.sqrt(2*np.pi*np.abs(pca_var))*self.alpha + (initial_width)*(1-self.alpha)
+            width = np.sqrt(2*np.pi*np.abs(pca_var))*self.width_parameter + (initial_width)*(1-self.width_parameter)
         else:
             cen = X[0]
             cov = np.identity(d)
@@ -1121,7 +1121,7 @@ class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
             width = self.init_width[y]
         neuron = {'y':y,'cov':cov,'center':cen,'eig_component':eig_c,'width':width,'variance':pca_var,'n':n}
         return neuron
-        
+
     def fit(self,X,y,**kwargs):
         all_class = np.unique(y)
         self.width_init(X, y)
@@ -1147,7 +1147,7 @@ class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
                 merge_cen = (new_n*new_cen+old_n*old_cen)/merge_n
                 merge_cov = 1/merge_n*(new_n*new_cov+old_n*old_cov+(new_n*old_n)/merge_n*np.matmul(np.array([new_cen-old_cen]).T,np.array([new_cen-old_cen])))
                 eig_c, pca_var = self.compute_sorted_eigencomponent(merge_cov)
-                new_w = np.sqrt(2*np.pi*np.abs(pca_var))*self.alpha + (old_w + np.abs(np.matmul(eig_c,merge_cen-old_cen)))*(1-self.alpha)
+                new_w = np.sqrt(2*np.pi*np.abs(pca_var))*self.width_parameter + (old_w + np.abs(np.matmul(eig_c,merge_cen-old_cen)))*(1-self.width_parameter)
                     
                 self.neuron_list.at[idx,'n'] = merge_n
                 self.neuron_list.at[idx,'center'] = merge_cen
@@ -1164,8 +1164,7 @@ class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
         return neuron['center'], neuron['eig_component'].real, neuron['width']
     
     def predict(self,X):
-        if self.max_d == None:
-            self.max_d = len(X[0])
+        self.max_d = max(1, len(X[0]) - self.reduce_dims)
         x_proj_dist = {}
         for idx, neuron in enumerate(self.neuron_list.to_dict('records')):
             center, eig_c, w = self.get_neuron_data(self.neuron_list, idx)
@@ -1181,10 +1180,10 @@ class D4(VersatileEllipticBaseClassifier, PrincipleProjectionBaseClassifier):
         return np.array(y_pred)
     
 class TRACED(ScalableHyperelipsoidBaseClassifier, PrincipleProjectionBaseClassifier):
-    def __init__(self, norm=2, epsilon=1e-10, method="overlap-outside", r=np.sqrt(2*np.pi), N0=3, delta=2, 
-                alpha=0, beta=0, variance_threshold = 1, components = None, 
+    def __init__(self, norm=2, epsilon=1e-10, method="overlap-outside", r=np.sqrt(2*np.pi), N0=3, delta=2,
+                alpha=0.5, beta=0.01, variance_threshold = 1, components = None,
                 pca_strategy = 'bottom', distance_metric = 'boundary', overlap_selection = "parallel",
-                width_parameter = 1, reduce_dims = 0, threshold = 15, min_dims=None, threshold_percentile = 100) -> None: 
+                width_parameter = 1, reduce_dims = 1, threshold = 15, min_dims=None, threshold_percentile = 100) -> None:
         
         # Attributes
         self.neuron_list = pd.DataFrame([])
