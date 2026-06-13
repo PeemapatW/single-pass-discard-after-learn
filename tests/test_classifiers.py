@@ -22,6 +22,12 @@ from sklearn.metrics import accuracy_score
 from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED
 
 
+# Note: an autouse fixture in conftest.py pins eig_solver='eig' for the whole
+# suite — these baselines reproduce the paper code (deprecated/spdal.py, which
+# uses eig). LRHE's default alpha also changed 0.5 -> 0.99 (paper-recommended)
+# in the package, so LRHE tests pass alpha=0.5 to match the paper-code defaults.
+
+
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -86,8 +92,8 @@ def iris_chunks():
 # Expected baselines (captured from original src/spdal.py)
 # ---------------------------------------------------------------------------
 
-LRHE_EXPECTED_N_NEURONS = 3
-LRHE_EXPECTED_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
+LRHE_EXPECTED_N_NEURONS = 4
+LRHE_EXPECTED_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
 
 VEBF_EXPECTED_N_NEURONS = 2
 VEBF_EXPECTED_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
@@ -106,8 +112,8 @@ TRACED_EXPECTED_PREDS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 
 # Chunked partial_fit baselines (captured from deprecated/spdal.py)
 # Binary: 4 chunks of 50 samples; Multiclass: 2 chunks of 50 samples
-LRHE_CHUNK_N_NEURONS = 5
-LRHE_CHUNK_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
+LRHE_CHUNK_N_NEURONS = 3
+LRHE_CHUNK_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
 
 VEBF_CHUNK_N_NEURONS = 2
 VEBF_CHUNK_PREDS = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1]
@@ -132,20 +138,20 @@ TRACED_CHUNK_PREDS = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 class TestLRHE:
     def test_neuron_count(self, binary_data):
         X_train, X_test, y_train = binary_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.partial_fit(X_train, y_train, classes=[0, 1])
         assert len(clf.neuron_list) == LRHE_EXPECTED_N_NEURONS
 
     def test_predictions(self, binary_data):
         X_train, X_test, y_train = binary_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.partial_fit(X_train, y_train, classes=[0, 1])
         preds = clf.predict(X_test)
         assert list(preds) == LRHE_EXPECTED_PREDS
 
     def test_neuron_columns(self, binary_data):
         X_train, _, y_train = binary_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.partial_fit(X_train, y_train, classes=[0, 1])
         for col in ['y', 'center', 'cov', 'eig_component', 'width', 'n']:
             assert col in clf.neuron_list[0]
@@ -268,14 +274,14 @@ class TestTRACED:
 class TestLRHEChunked:
     def test_neuron_count(self, binary_chunks):
         chunks, X_test = binary_chunks
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         for Xc, yc in chunks:
             clf.partial_fit(Xc, yc, classes=[0, 1])
         assert len(clf.neuron_list) == LRHE_CHUNK_N_NEURONS
 
     def test_predictions(self, binary_chunks):
         chunks, X_test = binary_chunks
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         for Xc, yc in chunks:
             clf.partial_fit(Xc, yc, classes=[0, 1])
         assert list(clf.predict(X_test)) == LRHE_CHUNK_PREDS
@@ -388,20 +394,20 @@ IRIS_TRACED_PREDS = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 # Digits (train 400, test 100) baselines
 # ---------------------------------------------------------------------------
 
-DIGITS_LRHE_N_NEURONS = 18
-DIGITS_LRHE_PREDS = [1, 1, 6, 7, 1, 3, 0, 7, 2, 3, 1, 1, 6, 7, 6, 3, 0, 3, 3, 1, 6, 3, 0, 3, 3, 3, 3, 7, 2, 7, 7, 3, 7, 2, 0, 0, 2, 2, 7, 3, 2, 0, 2, 2, 6, 3, 3, 7, 3, 3, 1, 6, 6, 6, 6, 3, 2, 0, 0, 3, 3, 2, 3, 2, 0, 0, 2, 7, 6, 3, 2, 6, 7, 6, 6, 3, 2, 3, 3, 2, 7, 6, 6, 1, 3, 2, 1, 0, 1, 3, 6, 2, 1, 2, 7, 1, 6, 6, 7, 2]
+DIGITS_LRHE_N_NEURONS = 19
+DIGITS_LRHE_PREDS = [4, 9, 6, 7, 3, 3, 0, 9, 3, 3, 4, 9, 6, 7, 9, 3, 0, 3, 3, 3, 6, 9, 0, 3, 3, 3, 3, 4, 9, 7, 7, 3, 9, 4, 0, 0, 3, 3, 7, 9, 3, 0, 6, 3, 6, 3, 3, 7, 3, 3, 4, 6, 6, 6, 4, 3, 9, 9, 0, 3, 9, 3, 9, 3, 0, 0, 4, 7, 6, 3, 6, 4, 7, 4, 6, 3, 4, 3, 3, 9, 7, 6, 9, 4, 3, 9, 4, 0, 3, 3, 6, 0, 6, 9, 7, 3, 4, 4, 7, 6]
 
 DIGITS_VEBF_N_NEURONS = 10
-DIGITS_VEBF_PREDS = [4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 9, 5, 5, 8, 9, 0, 9, 8, 9, 8, 4, 1, 7, 7, 3, 5, 1, 0, 0, 2, 2, 7, 9, 2, 0, 2, 2, 6, 3, 3, 7, 3, 9, 4, 6, 6, 6, 4, 9, 1, 9, 0, 9, 5, 2, 8, 2, 0, 0, 1, 7, 6, 3, 2, 1, 7, 4, 6, 3, 1, 3, 9, 1, 9, 6, 8, 4, 3, 1, 4, 0, 5, 3, 6, 9, 8, 1, 7, 5, 4, 4, 9, 2]
+DIGITS_VEBF_PREDS = [4, 5, 6, 7, 8, 9, 0, 1, 2, 9, 4, 5, 6, 7, 8, 9, 0, 9, 5, 5, 8, 9, 0, 9, 8, 9, 8, 4, 1, 7, 7, 3, 5, 1, 0, 0, 2, 2, 7, 9, 2, 0, 2, 2, 6, 3, 3, 7, 3, 9, 4, 6, 6, 6, 4, 9, 1, 9, 0, 9, 5, 2, 8, 2, 0, 0, 1, 7, 6, 3, 2, 1, 7, 4, 6, 3, 1, 3, 9, 1, 9, 6, 8, 4, 3, 1, 4, 0, 5, 3, 6, 9, 8, 1, 7, 5, 4, 4, 9, 2]
 
 DIGITS_SCIL_N_NEURONS = 10
-DIGITS_SCIL_PREDS = [8, 8, 5, 7, 8, 8, 0, 1, 2, 1, 1, 1, 8, 7, 8, 9, 0, 1, 5, 8, 8, 1, 0, 8, 8, 9, 8, 4, 1, 1, 7, 3, 8, 1, 0, 0, 8, 8, 7, 8, 2, 0, 8, 3, 6, 8, 1, 7, 8, 1, 4, 6, 1, 6, 4, 8, 1, 1, 0, 8, 8, 8, 8, 8, 0, 0, 1, 8, 6, 8, 8, 1, 1, 8, 6, 8, 1, 8, 1, 1, 2, 8, 8, 4, 8, 1, 1, 0, 8, 8, 6, 1, 8, 1, 7, 8, 1, 1, 1, 8]
+DIGITS_SCIL_PREDS = [1, 1, 6, 9, 1, 9, 0, 1, 2, 1, 4, 9, 6, 9, 9, 9, 0, 9, 9, 1, 1, 9, 0, 9, 9, 9, 9, 4, 1, 9, 9, 3, 1, 1, 0, 0, 2, 9, 9, 1, 9, 0, 2, 9, 6, 9, 1, 9, 3, 1, 1, 6, 6, 6, 1, 9, 1, 9, 0, 9, 9, 1, 1, 2, 0, 0, 1, 9, 6, 1, 9, 1, 9, 1, 6, 9, 1, 9, 9, 1, 9, 9, 9, 1, 9, 1, 1, 0, 9, 9, 6, 9, 2, 1, 9, 9, 1, 1, 9, 9]
 
 DIGITS_SHEF_N_NEURONS = 10
 DIGITS_SHEF_PREDS = [4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 9, 9, 0, 9, 5, 5, 6, 3, 0, 9, 8, 9, 8, 4, 1, 7, 1, 3, 5, 1, 0, 0, 2, 2, 7, 3, 3, 0, 2, 1, 6, 3, 3, 7, 3, 3, 4, 6, 6, 6, 4, 9, 1, 5, 0, 9, 5, 1, 1, 2, 0, 0, 1, 7, 6, 3, 2, 1, 3, 4, 6, 3, 1, 3, 9, 1, 9, 6, 8, 4, 3, 1, 4, 0, 5, 3, 6, 9, 5, 1, 7, 5, 4, 4, 7, 2]
 
 DIGITS_D4_N_NEURONS = 10
-DIGITS_D4_PREDS = [4.0, 3.0, 4.0, 3.0, 8.0, 3.0, 0.0, 4.0, 3.0, 3.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 3.0, 3.0, 3.0, 8.0, 3.0, 4.0, 3.0, 8.0, 3.0, 8.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 0.0, 0.0, 3.0, 3.0, 3.0, 8.0, 3.0, 0.0, 3.0, 3.0, 3.0, 4.0, 3.0, 3.0, 3.0, 3.0, 4.0, 6.0, 4.0, 3.0, 4.0, 3.0, 1.0, 3.0, 0.0, 3.0, 5.0, 3.0, 8.0, 3.0, 0.0, 0.0, 4.0, 3.0, 6.0, 3.0, 3.0, 1.0, 3.0, 4.0, 8.0, 3.0, 4.0, 3.0, 3.0, 1.0, 3.0, 8.0, 8.0, 4.0, 3.0, 4.0, 4.0, 4.0, 8.0, 3.0, 6.0, 3.0, 4.0, 1.0, 3.0, 5.0, 4.0, 4.0, 3.0, 3.0]
+DIGITS_D4_PREDS = [1.0, 1.0, 1.0, 7.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 7.0, 9.0, 9.0, 1.0, 9.0, 1.0, 1.0, 1.0, 1.0, 1.0, 9.0, 9.0, 9.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 6.0, 1.0, 1.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 9.0, 1.0, 1.0, 0.0, 9.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0, 6.0, 3.0, 1.0, 1.0, 9.0, 1.0, 9.0, 1.0, 3.0, 1.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 6.0, 9.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0]
 
 DIGITS_TRACED_N_NEURONS = 10
 DIGITS_TRACED_PREDS = [4, 5, 6, 7, 8, 9, 0, 1, 2, 9, 4, 5, 6, 5, 8, 9, 0, 9, 5, 5, 0, 9, 0, 9, 8, 9, 8, 4, 1, 7, 7, 3, 5, 1, 0, 0, 2, 2, 7, 9, 2, 0, 2, 3, 6, 3, 9, 5, 9, 9, 4, 6, 6, 6, 4, 9, 1, 9, 0, 9, 5, 2, 8, 2, 0, 0, 1, 5, 6, 9, 2, 1, 7, 4, 6, 3, 1, 3, 9, 1, 9, 6, 8, 4, 3, 1, 4, 0, 5, 9, 6, 9, 8, 1, 7, 5, 1, 4, 5, 2]
@@ -414,13 +420,13 @@ DIGITS_TRACED_PREDS = [4, 5, 6, 7, 8, 9, 0, 1, 2, 9, 4, 5, 6, 5, 8, 9, 0, 9, 5, 
 class TestLRHEIris:
     def test_neuron_count(self, iris_data):
         X_train, X_test, y_train = iris_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.fit(X_train, y_train)
         assert len(clf.neuron_list) == IRIS_LRHE_N_NEURONS
 
     def test_predictions(self, iris_data):
         X_train, X_test, y_train = iris_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.fit(X_train, y_train)
         assert list(clf.predict(X_test)) == IRIS_LRHE_PREDS
 
@@ -502,13 +508,13 @@ class TestTRACEDIris:
 class TestLRHEDigits:
     def test_neuron_count(self, digits_data):
         X_train, X_test, y_train = digits_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.fit(X_train, y_train)
         assert len(clf.neuron_list) == DIGITS_LRHE_N_NEURONS
 
     def test_predictions(self, digits_data):
         X_train, X_test, y_train = digits_data
-        clf = LRHE()
+        clf = LRHE(alpha=0.5)
         clf.fit(X_train, y_train)
         assert list(clf.predict(X_test)) == DIGITS_LRHE_PREDS
 
@@ -631,7 +637,7 @@ class TestLRHENumerics:
 
     def test_neuron_values_binary(self, binary_data, dep_module):
         X_train, _, y_train = binary_data
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_new.partial_fit(X_train, y_train, classes=[0, 1])
         clf_dep = dep_module.LRHE()
         clf_dep.partial_fit(X_train, y_train, classes=[0, 1])
@@ -643,7 +649,7 @@ class TestLRHENumerics:
 
     def test_neuron_values_iris(self, iris_data, dep_module):
         X_train, _, y_train = iris_data
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_new.fit(X_train, y_train)
         clf_dep = dep_module.LRHE()
         clf_dep.fit(X_train, y_train)
@@ -655,7 +661,7 @@ class TestLRHENumerics:
 
     def test_accuracy_binary(self, binary_data, dep_module):
         X_train, X_test, y_train = binary_data
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_new.partial_fit(X_train, y_train, classes=[0, 1])
         clf_dep = dep_module.LRHE()
         clf_dep.partial_fit(X_train, y_train, classes=[0, 1])
@@ -665,7 +671,7 @@ class TestLRHENumerics:
 
     def test_accuracy_iris(self, iris_data, dep_module):
         X_train, X_test, y_train = iris_data
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_new.fit(X_train, y_train)
         clf_dep = dep_module.LRHE()
         clf_dep.fit(X_train, y_train)
@@ -847,7 +853,7 @@ class TestLRHEChunkedMonitor:
     def test_binary_chunks(self, binary_chunks, dep_module):
         chunks, X_test = binary_chunks
         y_test = make_classification(n_samples=300, random_state=42)[1][200:]
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_dep = dep_module.LRHE()
         for i, (Xc, yc) in enumerate(chunks):
             clf_new.partial_fit(Xc, yc, classes=[0, 1])
@@ -858,7 +864,7 @@ class TestLRHEChunkedMonitor:
     def test_iris_chunks(self, iris_chunks, dep_module):
         chunks, X_test, classes = iris_chunks
         y_test = load_iris(return_X_y=True)[1][120:]
-        clf_new = LRHE()
+        clf_new = LRHE(alpha=0.5)
         clf_dep = dep_module.LRHE()
         for i, (Xc, yc) in enumerate(chunks):
             clf_new.partial_fit(Xc, yc, classes=classes)
@@ -990,7 +996,14 @@ class TestD4Numerics:
 
 
 class TestD4HyperparamParity:
-    """D4: verify various hyperparameter values produce same results between new and deprecated."""
+    """D4: verify the package reproduces the paper code (deprecated/spdal.py) at
+    identical hyperparameters.
+
+    Note: the parameter rename (alpha -> width_parameter, max_d -> reduce_dims)
+    is already reflected in deprecated/spdal.py, so both sides use the new
+    names and the same values — this is a refactor-faithfulness check, not a
+    rename mapping. deprecated derives max_d = n_features - reduce_dims itself.
+    """
 
     @pytest.mark.parametrize("params", [
         {"width_parameter": 0.5},
@@ -1024,7 +1037,7 @@ class TestD4HyperparamParity:
 
     @pytest.mark.parametrize("reduce_dims", [1, 2])
     def test_accuracy_reduce_dims_iris(self, iris_data, dep_module, reduce_dims):
-        """reduce_dims=k: both new and deprecated use the same parameter name."""
+        """reduce_dims=k reproduces deprecated at the same setting (4-feature iris)."""
         X_train, X_test, y_train = iris_data
         clf_new = D4(reduce_dims=reduce_dims)
         clf_new.fit(X_train, y_train)
@@ -1034,7 +1047,7 @@ class TestD4HyperparamParity:
 
     @pytest.mark.parametrize("reduce_dims", [1, 2])
     def test_accuracy_reduce_dims_multiclass(self, multiclass_data, dep_module, reduce_dims):
-        """reduce_dims=k: both new and deprecated use the same parameter name."""
+        """reduce_dims=k reproduces deprecated at the same setting (20-feature data)."""
         X_train, X_test, y_train, classes = multiclass_data
         clf_new = D4(reduce_dims=reduce_dims)
         clf_new.partial_fit(X_train, y_train, classes=classes)
@@ -1159,9 +1172,11 @@ class TestLRHEHyperparamParity:
     ])
     def test_neurons_iris(self, iris_data, dep_module, params):
         X_train, _, y_train = iris_data
-        clf_new = LRHE(**params)
+        # LRHE default alpha changed 0.5 -> 0.99 (paper-recommended) in the
+        # package; pin 0.5 so omitted-alpha cases still match the paper code.
+        clf_new = LRHE(**{"alpha": 0.5, **params})
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.LRHE(**params)
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **params})
         clf_dep.fit(X_train, y_train)
         _assert_neurons_close(
             _sorted_neurons(clf_new.neuron_list),
@@ -1176,9 +1191,11 @@ class TestLRHEHyperparamParity:
     ])
     def test_accuracy_iris(self, iris_data, dep_module, params):
         X_train, X_test, y_train = iris_data
-        clf_new = LRHE(**params)
+        # LRHE default alpha changed 0.5 -> 0.99 (paper-recommended) in the
+        # package; pin 0.5 so omitted-alpha cases still match the paper code.
+        clf_new = LRHE(**{"alpha": 0.5, **params})
         clf_new.fit(X_train, y_train)
-        clf_dep = dep_module.LRHE(**params)
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **params})
         clf_dep.fit(X_train, y_train)
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 

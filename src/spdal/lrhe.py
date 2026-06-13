@@ -18,6 +18,10 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
     ----------
     alpha : float
         Minimum-width factor used in shift_and_shrink_neuron (width floor = alpha * current_width).
+        Paper default 0.99 ("gradual shrinking", LRHE paper p.11; alpha=1 disables
+        shrinking, smaller alpha = more aggressive). Default changed 0.5 -> 0.99 on
+        2026-06-11 to match the paper; benchmarks tune alpha per dataset, so bench
+        results are unaffected by the default.
     theta : float
         Overlap threshold for merge_neuron (merge when psi <= theta).
     delta : float
@@ -26,7 +30,7 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         Numerical floor added to widths and eigenvalues.
     """
 
-    def __init__(self, alpha=0.5, theta=0, delta=1, epsilon=1e-10):
+    def __init__(self, alpha=0.99, theta=0, delta=1, epsilon=1e-10):
         self.neuron_list = []
         self.init_width = {}
         self.delta = delta

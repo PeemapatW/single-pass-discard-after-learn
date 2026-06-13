@@ -17,6 +17,13 @@ class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
     check_neuron_class_exist() and set_classes().
     """
 
+    # Eigensolver for compute_sorted_eigencomponent. Default 'eigh' (symmetric
+    # solver — the correct/robust choice; see method docstring). Set to 'eig'
+    # to reproduce the original paper code (deprecated/spdal.py) bit-for-bit —
+    # used only by the refactor-faithfulness regression tests. Not a tuned
+    # hyperparameter; not exposed in __init__/get_params.
+    eig_solver = 'eigh'
+
     def compute_sorted_eigencomponent(self, cov : np.ndarray):
         """
         Computes the sorted eigenvectors and eigenvalues of a covariance matrix.
@@ -28,12 +35,30 @@ class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
             A tuple containing:
                 - eig_c: A numpy array of sorted eigenvectors (principal components).
                 - pca_var: A numpy array of sorted eigenvalues (variances).
-        """
 
-        eig_value, eig_vector = LA.eig(cov)
-        sort_idx = eig_value.argsort()[::-1]
-        pca_var = eig_value[sort_idx]
-        eig_c = eig_vector[:,sort_idx].T
+        Covariance matrices are symmetric positive semi-definite by construction
+        (pooled second moment / parallel-axis merge / np.cov), so the default
+        solver is the symmetric ``eigh``: real eigenvalues, orthonormal
+        eigenvectors, ascending order, always converges. The general ``LA.eig``
+        returns complex dtype, non-orthonormal eigenvectors and can fail to
+        converge on ill-conditioned input; it is
+        kept behind ``eig_solver='eig'`` only to reproduce the paper code.
+        """
+        if self.eig_solver == 'eig':
+            # Legacy path — bit-identical to deprecated/spdal.py (paper code).
+            eig_value, eig_vector = LA.eig(cov)
+            sort_idx = eig_value.argsort()[::-1]
+            pca_var = eig_value[sort_idx]          # fancy index -> copy, safe to clamp
+            eig_c = eig_vector[:, sort_idx].T
+        else:
+            # Default: symmetric solver. Symmetrize first to clean any
+            # floating-point asymmetry (~1e-15) and make the result independent
+            # of which triangle eigh reads.
+            cov = (cov + cov.T) / 2.0
+            eig_value, eig_vector = LA.eigh(cov)
+            # eigh returns eigenvalues ascending; reverse to descending.
+            pca_var = eig_value[::-1].copy()       # copy: the clamp below mutates it
+            eig_c = eig_vector[:, ::-1].T
 
         # Find the first non-positive eigenvalue
         first_zero_index =  np.searchsorted(-pca_var,0)

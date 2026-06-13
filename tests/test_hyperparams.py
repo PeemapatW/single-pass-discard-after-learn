@@ -131,8 +131,8 @@ class TestLRHEHyperparams:
     @pytest.mark.parametrize("kwargs", LRHE_PARAM_CASES)
     def test_binary_predictions_match_deprecated(self, binary_data, dep_module, kwargs):
         X_train, X_test, y_train = binary_data
-        clf_new = LRHE(**kwargs)
-        clf_dep = dep_module.LRHE(**kwargs)
+        clf_new = LRHE(**{"alpha": 0.5, **kwargs})
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **kwargs})
         clf_new.partial_fit(X_train, y_train, classes=[0, 1])
         clf_dep.partial_fit(X_train, y_train, classes=[0, 1])
         _assert_preds_match(clf_new, clf_dep, X_test)
@@ -140,8 +140,8 @@ class TestLRHEHyperparams:
     @pytest.mark.parametrize("kwargs", LRHE_PARAM_CASES)
     def test_iris_predictions_match_deprecated(self, iris_data, dep_module, kwargs):
         X_train, X_test, y_train = iris_data
-        clf_new = LRHE(**kwargs)
-        clf_dep = dep_module.LRHE(**kwargs)
+        clf_new = LRHE(**{"alpha": 0.5, **kwargs})
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **kwargs})
         clf_new.fit(X_train, y_train)
         clf_dep.fit(X_train, y_train)
         _assert_preds_match(clf_new, clf_dep, X_test)
@@ -149,8 +149,8 @@ class TestLRHEHyperparams:
     @pytest.mark.parametrize("kwargs", LRHE_PARAM_CASES)
     def test_binary_neuron_values_match_deprecated(self, binary_data, dep_module, kwargs):
         X_train, _, y_train = binary_data
-        clf_new = LRHE(**kwargs)
-        clf_dep = dep_module.LRHE(**kwargs)
+        clf_new = LRHE(**{"alpha": 0.5, **kwargs})
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **kwargs})
         clf_new.partial_fit(X_train, y_train, classes=[0, 1])
         clf_dep.partial_fit(X_train, y_train, classes=[0, 1])
         _assert_neurons_close(
@@ -162,15 +162,15 @@ class TestLRHEHyperparams:
     @pytest.mark.parametrize("kwargs", LRHE_PARAM_CASES)
     def test_binary_chunked_matches_deprecated(self, binary_chunks, dep_module, kwargs):
         chunks, X_test = binary_chunks
-        clf_new = LRHE(**kwargs)
-        clf_dep = dep_module.LRHE(**kwargs)
+        clf_new = LRHE(**{"alpha": 0.5, **kwargs})
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **kwargs})
         _assert_chunk_preds_match(clf_new, clf_dep, chunks, X_test, classes=[0, 1])
 
     @pytest.mark.parametrize("kwargs", LRHE_PARAM_CASES)
     def test_iris_chunked_matches_deprecated(self, iris_chunks, dep_module, kwargs):
         chunks, X_test, classes = iris_chunks
-        clf_new = LRHE(**kwargs)
-        clf_dep = dep_module.LRHE(**kwargs)
+        clf_new = LRHE(**{"alpha": 0.5, **kwargs})
+        clf_dep = dep_module.LRHE(**{"alpha": 0.5, **kwargs})
         _assert_chunk_preds_match(clf_new, clf_dep, chunks, X_test, classes=classes)
 
 
@@ -363,9 +363,12 @@ class TestSHEFHyperparams:
 
 # ---------------------------------------------------------------------------
 # D4 hyperparameter tests
-# Params: norm=2, delta=1, width_parameter=1, reduce_dims=0, epsilon=1e-10, r=1.5, threshold=15
+# Params: norm=2, delta=1, alpha=1, max_d=None, epsilon=1e-10, r=1.5, threshold=15
 # ---------------------------------------------------------------------------
 
+# Note: deprecated/spdal.py D4 already uses the new names width_parameter /
+# reduce_dims (the alpha -> width_parameter, max_d -> reduce_dims rename is
+# applied there too), so both sides take identical kwargs.
 D4_PARAM_CASES = [
     pytest.param({"norm": 1},                  id="norm=1"),
     pytest.param({"delta": 2},                 id="delta=2"),
@@ -414,8 +417,8 @@ class TestD4Hyperparams:
 # ---------------------------------------------------------------------------
 # TRACED hyperparameter tests
 # Production params: norm=2, method="overlap-outside", r=_SQRT_2PI, N0=3,
-#   delta=2, alpha=0.5, beta=0.01, distance_metric='boundary',
-#   width_parameter=1, reduce_dims=1, threshold=15
+#   delta=2, alpha=0, beta=0, distance_metric='boundary',
+#   width_parameter=1, reduce_dims=0, threshold=15
 #
 # Removed params (deprecated defaults used for equivalence):
 #   variance_threshold=1, components=None, min_dims=None,
@@ -423,7 +426,8 @@ class TestD4Hyperparams:
 #   overlap_selection='parallel'
 # ---------------------------------------------------------------------------
 
-# Keyword arguments to pass only to the deprecated classifier to maintain equivalence
+# Keyword arguments for the production TRACED (subset of deprecated params)
+# dep_extra: extra kwargs to pass only to the deprecated classifier to maintain equivalence
 _DEP_TRACED_DEFAULTS = dict(
     variance_threshold=1, components=None, threshold_percentile=100, min_dims=None,
     pca_strategy='bottom', overlap_selection='parallel',

@@ -112,12 +112,12 @@ clf = SCIL(N0=3, eta=2, delta=1, theta=0)
 
 ```python
 from spdal import LRHE
-clf = LRHE(alpha=0.5, theta=0, delta=1)
+clf = LRHE(alpha=0.99, theta=0, delta=1)
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `alpha` | `0.5` | Shrink multiplier during recoil [$\alpha \in [0,1]$]|
+| `alpha` | `0.99` | Shrink multiplier during recoil [$\alpha \in [0,1]$]; paper-recommended (gradual shrinking)|
 | `theta` | `0` | Overlap threshold for neuron merging|
 | `delta` | `1` | Width scaling from pairwise distances for initial width [$\delta > 0$]|
 
@@ -151,7 +151,7 @@ clf = D4(width_parameter=1, reduce_dims=0, delta=1, norm=2, r=1.5, threshold=15)
 
 D4 maintains **one neuron per class**. When two nearest neurons belong to different classes, it select their axes using parallel and compactness criteria and assigns the class with the smaller projected distance in that subspace.
 
-> **Note:** Theorem 2 of the D4 paper contains a sign error in the proof. This does not affect the algorithm or experimental results. See [technical note](docs/D4_theorem2_note.md) for details.
+> **Note:** Theorem 2 of the D4 paper contains a sign error in the proof. This does not affect the algorithm or experimental results. See [technical note](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_theorem2_note.md) for details.
 
 ### TRACED
 
@@ -244,7 +244,7 @@ pip install build && python -m build
 3. **LRHE** — Jindadoungrut, K., Phimoltares, S., & Lursinsap, C. (2020). Neural Learning With Recoil Behavior in Hyperellipsoidal Structure. *IEEE Access*, 8, 114643–114655. [[paper]](https://ieeexplore.ieee.org/document/9120020)
 4. **SHEF** — Rungcharassang, P., & Lursinsap, C. (2020). Scalable Hyper-Ellipsoidal Function with Projection Ratio for Local Distributed Streaming Data Classification. *IEEE Access*, 8, 105460–105474. [[paper]](https://ieeexplore.ieee.org/document/9102265)
 5. **D4** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. (2026). Markov-based continuous learning with diversion of data distribution direction for streaming data in limited memory. *Expert Systems With Applications*, 298, 129818. [[paper]](https://doi.org/10.1016/j.eswa.2025.129818)
-   - Technical note (Theorem 2): [docs/D4_theorem2_note.md](docs/D4_theorem2_note.md)
+   - Technical note (Theorem 2): [docs/D4_theorem2_note.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/docs/D4_theorem2_note.md)
 6. **TRACED** — Wongsriphisant, P., Plaimas, K., & Lursinsap, C. (2026). TRACED: Trend-Adaptive Classification with Ellipsoidal Disambiguation for Resolving Exterior and Coincident Regions in Data Streams. *Information Sciences*, 743, 123338. [[paper]](https://doi.org/10.1016/j.ins.2026.123338)
 
 ---
@@ -285,3 +285,7 @@ If you use this library in your research, please cite the relevant paper(s):
 
 - The original monolithic implementation is preserved at [`deprecated/spdal.py`](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/deprecated/spdal.py) for reference.
 - Refactoring into the modular `src/spdal/` package structure, docstrings, and parameter naming were performed by Claude (Anthropic) and reviewed by the project owner.
+
+## Changelog
+
+See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.2.0**: default eigensolver is now the symmetric `eigh` (was `eig`); `LRHE` default `alpha` is `0.99` (was `0.5`). Both may change results vs 0.1.1 — see the changelog.
