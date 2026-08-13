@@ -1,0 +1,72 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Gate for the frozen regression baselines in test_classifiers.py and
+  # test_phishing.py. Those constants are exact predictions and neuron counts,
+  # so they are sensitive to the numeric libraries underneath: a different
+  # numpy/BLAS build can flip a tie and turn the suite red for no real reason.
+  # This job pins the versions the baselines were captured on.
+  baselines:
+    name: Full suite (pinned numerics)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install with pinned numerics
+        run: |
+          python -m pip install --upgrade pip
+          # Install the package first, then force the pins: doing it the other
+          # way round lets a transitive dependency quietly upgrade numpy again.
+          pip install -e ".[dev,experiments]"
+          pip install "numpy==1.26.4" "scipy==1.17.1" "scikit-learn==1.8.0"
+      - name: Verify the pins actually took
+        run: |
+          python - <<'PY'
+          import numpy, scipy, sklearn
+          want = {'numpy': '1.26.4', 'scipy': '1.17.1', 'scikit-learn': '1.8.0'}
+          got = {'numpy': numpy.__version__, 'scipy': scipy.__version__,
+                 'scikit-learn': sklearn.__version__}
+          print(got)
+          bad = {k: (v, want[k]) for k, v in got.items() if v != want[k]}
+          if bad:
+              raise SystemExit(f"pinned numerics were overridden: {bad}")
+          PY
+      - name: Run tests
+        run: pytest -q
+
+  # Gate for "does the package work at all" across the supported Python range,
+  # with whatever dependency versions resolve today. Only the tests that assert
+  # properties rather than frozen values run here, so this job stays meaningful
+  # when a new numpy lands. It is expected to catch API breakage, not drift.
+  compat:
+    name: Property tests (py${{ matrix.python-version }}, latest deps)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Show resolved versions
+        run: pip list | grep -Ei "^(numpy|scipy|scikit-learn|pandas) "
+      - name: Run property tests
+        run: |
+          pytest -q \
+            tests/test_edge_cases.py \
+            tests/test_eigh_default.py \
+            tests/test_compute_eigencomponent.py
