@@ -42,6 +42,16 @@ from sklearn.datasets import load_iris, make_classification
 from sklearn.metrics import accuracy_score
 
 from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED
+from spdal._base import HyperellipsoidBaseClassifier
+
+
+@pytest.fixture(autouse=True)
+def _use_default_eig_solver():
+    """Override conftest's 'eig' pin: nothing here compares against the paper
+    code, so these tests must exercise the solver the package actually ships."""
+    HyperellipsoidBaseClassifier.eig_solver = 'eigh'
+    yield
+    HyperellipsoidBaseClassifier.eig_solver = 'eigh'
 
 ALL_CLASSIFIERS = [LRHE, VEBF, SCIL, SHEF, D4, TRACED]
 ALL_CLASSIFIER_IDS = ["LRHE", "VEBF", "SCIL", "SHEF", "D4", "TRACED"]

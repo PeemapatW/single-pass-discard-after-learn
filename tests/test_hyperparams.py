@@ -469,6 +469,13 @@ TRACED_PARAM_CASES = [
 ]
 
 
+@pytest.mark.xfail(
+    reason="TRACED no longer reproduces deprecated/spdal.py: the paper code rebuilds "
+           "the shape matrix from row-stored eigenvectors as P D P^T, which describes "
+           "a differently-oriented ellipsoid; TRACED now uses the correct P^T D P. "
+           "Cases that never reach a merge/expansion still agree, hence strict=False.",
+    strict=False,
+)
 class TestTRACEDHyperparams:
 
     @pytest.mark.parametrize("kwargs", TRACED_PARAM_CASES)

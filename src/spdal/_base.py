@@ -33,8 +33,14 @@ class HyperellipsoidBaseClassifier(BaseEstimator, ABC):
 
         Returns:
             A tuple containing:
-                - eig_c: A numpy array of sorted eigenvectors (principal components).
+                - eig_c: A numpy array of sorted eigenvectors (principal components),
+                  stored one eigenvector PER ROW — see the convention note below.
                 - pca_var: A numpy array of sorted eigenvalues (variances).
+
+        Eigenvector storage convention — ROWS, not columns
+        --------------------------------------------------
+        The solvers return eigenvectors as COLUMNS; this method transposes so that
+        ``eig_c[i]`` is the i-th eigenvector (descending eigenvalue). 
 
         Covariance matrices are symmetric positive semi-definite by construction
         (pooled second moment / parallel-axis merge / np.cov), so the default
