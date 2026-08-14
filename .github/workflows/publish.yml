@@ -5,7 +5,45 @@ on:
     types: [published]
 
 jobs:
+  # The version lives in pyproject.toml, the CHANGELOG heading and the release
+  # tag, and all three are bumped by hand. Catch a mismatch here rather than
+  # after an unwanted version is on PyPI, where it cannot be replaced.
+  check-version:
+    name: Release tag matches packaged version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare tag, pyproject and CHANGELOG
+        env:
+          TAG: ${{ github.event.release.tag_name }}   # via env: never inline into the script
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, sys
+
+          tag = os.environ["TAG"].lstrip("v")
+          pyproject = pathlib.Path("pyproject.toml").read_text()
+          m = re.search(r'^version = "([^"]+)"', pyproject, re.M)
+          if m is None:
+              sys.exit("no version found in pyproject.toml")
+          packaged = m.group(1)
+
+          problems = []
+          if packaged != tag:
+              problems.append(f"release tag is {tag!r} but pyproject.toml says {packaged!r}")
+          changelog = pathlib.Path("CHANGELOG.md").read_text()
+          if f"## [{tag}]" not in changelog:
+              problems.append(f"CHANGELOG.md has no '## [{tag}]' section")
+
+          if problems:
+              sys.exit("\n".join(problems))
+          print(f"version {tag} is consistent across tag, pyproject.toml and CHANGELOG.md")
+          PY
+
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: [check-version, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
