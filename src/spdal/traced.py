@@ -143,7 +143,7 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
 
         if n_alpha != 1:
             displacement_new = cen_new - cen_alpha
-            cov_alpha_reconstructed = eig_c_alpha @ np.diag(width_alpha**2) @ eig_c_alpha.T
+            cov_alpha_reconstructed = eig_c_alpha.T @ np.diag(width_alpha**2) @ eig_c_alpha
             old_projected = np.array([
                 np.sqrt(eig_c_new[i].T @ cov_alpha_reconstructed @ eig_c_new[i])
                 for i in range(len(width_new))
@@ -194,8 +194,8 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
             eig_beta = nb['eig_component']
             width_beta = nb['width']
 
-            cov_tilde_alpha = eig_alpha @ np.diag(width_alpha**2) @ eig_alpha.T
-            cov_tilde_inv_beta = eig_beta @ np.diag(1 / (width_beta**2)) @ eig_beta.T
+            cov_tilde_alpha = eig_alpha.T @ np.diag(width_alpha**2) @ eig_alpha
+            cov_tilde_inv_beta = eig_beta.T @ np.diag(1 / (width_beta**2)) @ eig_beta
 
             F = (-cen_alpha + cen_beta) @ cov_tilde_inv_beta
             D = cov_tilde_alpha @ cov_tilde_inv_beta + np.outer(cen_alpha, F)

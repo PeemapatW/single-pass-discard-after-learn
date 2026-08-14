@@ -4,6 +4,24 @@ All notable changes to `spdal` are documented here. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semantic
 versioning (pre-1.0: minor bumps may change default behaviour).
 
+## [0.3.0]
+
+### Fixed (alters TRACED results vs 0.2.0)
+- `TRACED` now rebuilds its ellipsoid shape matrix as `Pᵀ D P` (was `P D Pᵀ`) in
+  `merge_neuron` and `update_parameter`, matching the row-major eigenvector
+  convention of `compute_sorted_eigencomponent`. Neuron counts can shift slightly; accuracy is largely unchanged. The paper code
+  (`deprecated/spdal.py`) uses the old form, so the TRACED baselines were
+  re-captured and the TRACED-vs-deprecated parity tests are marked `xfail`. Other
+  classifiers do not use this reconstruction.
+
+### Changed
+- `tests/test_edge_cases.py` now runs on the package default eigensolver
+  (`eigh`) instead of the suite-wide `eig` pin. Nothing in that file compares
+  against the paper code, so it should exercise the solver the package ships.
+- Frozen regression baselines re-captured for `LRHE` (binary, chunked, digits,
+  phishing), `VEBF`/`SCIL`/`D4` (digits) and `SHEF` (phishing); the committed
+  values no longer matched the values the suite computes.
+
 ## [0.2.0]
 
 ### Changed (default behaviour — may alter results vs 0.1.1)

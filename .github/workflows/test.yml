@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:      # publish.yml gates the release on this
+
+jobs:
+  # The suite compares the package against deprecated/spdal.py in the same
+  # process rather than against frozen prediction lists, so it no longer depends
+  # on which numpy/BLAS is underneath and needs no version pins: 435 passed
+  # under both numpy 1.26.4 and numpy 2.5.2, and 423 (Phishing skipped, no
+  # river) in a bare ".[dev]" environment on numpy 2.5.2 / pandas 3.0.5.
+  test:
+    name: py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          # river only powers the Phishing tests, which skip themselves when it
+          # is absent. Never fail the job over a missing wheel for this Python.
+          pip install river || echo "river unavailable; Phishing tests will skip"
+      - name: Show resolved versions
+        run: pip list | grep -Ei "^(numpy|scipy|scikit-learn|pandas|river) " || true
+      - name: Run tests
+        run: pytest -q

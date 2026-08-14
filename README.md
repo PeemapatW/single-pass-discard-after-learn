@@ -288,4 +288,4 @@ If you use this library in your research, please cite the relevant paper(s):
 
 ## Changelog
 
-See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.2.0**: default eigensolver is now the symmetric `eigh` (was `eig`); `LRHE` default `alpha` is `0.99` (was `0.5`). Both may change results vs 0.1.1 — see the changelog.
+See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.3.0**: `TRACED` builds its ellipsoid shape matrix with the correct orientation when merging neurons and when tracking their expansion. Neuron counts can shift slightly, and predictions may differ only through the exterior-ambiguity path — see the changelog.
