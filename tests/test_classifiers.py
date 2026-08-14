@@ -104,7 +104,7 @@ def iris_chunks():
 # scenarios agree exactly in both environments.
 #
 # TRACED is the other five. Its shape-matrix orientation fix means it no longer
-# reproduces the paper code (see _TRACED_ORIENTATION_XFAIL below), so it asserts
+# reproduces the paper code (see _TRACED_ORIENTATION_SKIP below), so it asserts
 # a floor on agreement instead of equality. Observed agreement in both
 # environments: 100%, 100%, 96.7% (iris), 100%, 99.6% (phishing).
 
@@ -717,15 +717,17 @@ _TRACED_NEW_DEFAULTS = {"alpha": 0.5, "beta": 0.01, "reduce_dims": 1}
 """Params whose defaults changed between deprecated and new TRACED; must be passed
 explicitly to dep_module.TRACED() so both classifiers run with identical settings."""
 
-_TRACED_ORIENTATION_XFAIL = (
+_TRACED_ORIENTATION_SKIP = (
     "TRACED no longer reproduces deprecated/spdal.py: the paper code rebuilds the "
     "shape matrix from row-stored eigenvectors as P D P^T, which describes a "
-    "differently-oriented ellipsoid; TRACED now uses the correct P^T D P. Cases "
-    "that never reach a merge/expansion still agree, hence strict=False."
+    "differently-oriented ellipsoid; TRACED now uses the correct P^T D P. Skipped "
+    "rather than xfailed because a non-strict xfail runs the whole comparison and "
+    "then discards the verdict. TRACED parity is covered by the agreement floor in "
+    "test_matches_deprecated."
 )
 
 
-@pytest.mark.xfail(reason=_TRACED_ORIENTATION_XFAIL, strict=False)
+@pytest.mark.skip(reason=_TRACED_ORIENTATION_SKIP)
 class TestTRACEDNumerics:
     """TRACED: list-of-dicts neuron values must match deprecated DataFrame values."""
 
@@ -770,7 +772,7 @@ class TestTRACEDNumerics:
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
 
-@pytest.mark.xfail(reason=_TRACED_ORIENTATION_XFAIL, strict=False)
+@pytest.mark.skip(reason=_TRACED_ORIENTATION_SKIP)
 class TestTRACEDChunkedMonitor:
     """Track TRACED neuron params, predictions, and accuracy after every chunk."""
 
@@ -944,7 +946,7 @@ class TestSHEFHyperparamParity:
         np.testing.assert_array_equal(clf_new.predict(X_test), clf_dep.predict(X_test))
 
 
-@pytest.mark.xfail(reason=_TRACED_ORIENTATION_XFAIL, strict=False)
+@pytest.mark.skip(reason=_TRACED_ORIENTATION_SKIP)
 class TestTRACEDHyperparamParity:
     """TRACED: verify non-default hyperparameters match deprecated module output.
 

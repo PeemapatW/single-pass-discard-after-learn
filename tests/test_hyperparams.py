@@ -469,12 +469,14 @@ TRACED_PARAM_CASES = [
 ]
 
 
-@pytest.mark.xfail(
+@pytest.mark.skip(
     reason="TRACED no longer reproduces deprecated/spdal.py: the paper code rebuilds "
            "the shape matrix from row-stored eigenvectors as P D P^T, which describes "
            "a differently-oriented ellipsoid; TRACED now uses the correct P^T D P. "
-           "Cases that never reach a merge/expansion still agree, hence strict=False.",
-    strict=False,
+           "Skipped rather than xfailed because a non-strict xfail runs the whole "
+           "comparison and then discards the result -- minutes of work for a verdict "
+           "nothing can act on. TRACED parity is covered by the agreement floor in "
+           "test_classifiers.test_matches_deprecated."
 )
 class TestTRACEDHyperparams:
 

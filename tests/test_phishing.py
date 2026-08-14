@@ -109,7 +109,7 @@ def test_matches_deprecated(request, dep_module, case):
 
     if name == 'TRACED':
         # TRACED deliberately diverges from the paper code; see
-        # _TRACED_ORIENTATION_XFAIL in test_classifiers.py.
+        # _TRACED_ORIENTATION_SKIP in test_classifiers.py.
         agreement = float((preds_new == preds_dep).mean())
         assert agreement >= TRACED_MIN_AGREEMENT, (
             f"TRACED agreement with the paper code fell to {agreement:.1%} "
