@@ -10,8 +10,9 @@ on:
 jobs:
   # The suite compares the package against deprecated/spdal.py in the same
   # process rather than against frozen prediction lists, so it no longer depends
-  # on which numpy/BLAS is underneath and needs no version pins. Verified
-  # identical (435 passed) under numpy 1.26.4 and numpy 2.5.2.
+  # on which numpy/BLAS is underneath and needs no version pins: 435 passed
+  # under both numpy 1.26.4 and numpy 2.5.2, and 423 (Phishing skipped, no
+  # river) in a bare ".[dev]" environment on numpy 2.5.2 / pandas 3.0.5.
   test:
     name: py${{ matrix.python-version }}
     runs-on: ubuntu-latest

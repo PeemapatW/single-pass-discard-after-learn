@@ -21,7 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+# matplotlib is a test dependency, not a plotting one: the regression tests
+# compare against deprecated/spdal.py, which imports pyplot at module level.
+dev = ["pytest>=7.0", "matplotlib"]
 experiments = ["matplotlib", "river", "ucimlrepo"]
 
 [tool.setuptools.packages.find]
