@@ -277,7 +277,7 @@ class PrincipleProjectionBaseClassifier(BaseEstimator):
         """
 
         P_d_x = np.tensordot(x_centered, P, axes=(1, 1))  # Project data points
-        return (LA.norm(P_d_x / M, ord=norm, axis=1)) - self.r  # Calculate distance
+        return (LA.norm(P_d_x / M, ord=norm, axis=1)) - 1  # D4 Eq. 7
 
     def predict_with_eigen_proj(self, neuron_list_test, X, argsort_dist):
         """Predicts class labels using eigenprojection for cross-class neuron pairs.

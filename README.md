@@ -137,7 +137,7 @@ clf = SHEF(M=3, r=1.5)
 
 ```python
 from spdal import D4
-clf = D4(width_parameter=1, reduce_dims=0, delta=1, norm=2, r=1.5, threshold=15)
+clf = D4(width_parameter=1, reduce_dims=0, delta=1, norm=2, threshold=15)
 ```
 
 | Parameter | Default | Description |
@@ -288,4 +288,4 @@ If you use this library in your research, please cite the relevant paper(s):
 
 ## Changelog
 
-See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.3.0**: `TRACED` builds its ellipsoid shape matrix with the correct orientation when merging neurons and when tracking their expansion. Neuron counts can shift slightly, and predictions may differ only through the exterior-ambiguity path — see the changelog.
+See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.4.0**: `VEBF`, `LRHE`, `SHEF` and `TRACED` are brought closer to the algorithms as described in their papers, so their results may differ from 0.3.0; `LRHE` and `SCIL` gain small numerical safeguards; and `D4` no longer takes an `r` argument. Details and paper references are in the changelog.

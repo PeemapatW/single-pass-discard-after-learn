@@ -198,7 +198,9 @@ class TestSHEFCodeDistanceMatchesPaper:
             D_code  = code_distance(x_test, c, S, r, epsilon=clf.epsilon)
             D_maha  = mahalanobis_over_r(x_test, c, S, r)
             np.testing.assert_allclose(
-                D_code, D_maha, rtol=1e-6, atol=1e-8,
+                # rtol 1e-5: since 0.4.0's Eq. 37 merge scale this fit keeps a neuron whose covariance is ~eps in
+                # one direction (distances ~1e5), where the two equal formulas differ by ~1e-6 from round-off.
+                D_code, D_maha, rtol=1e-5, atol=1e-8,
                 err_msg=f"Neuron {idx}: code distance != Mahalanobis/r"
             )
 

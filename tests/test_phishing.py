@@ -27,7 +27,10 @@ import pytest
 pytest.importorskip("river", reason="river not installed; skip Phishing tests")
 
 from river.datasets import Phishing  # noqa: E402 — after importorskip
-from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED  # noqa: E402
+from spdal import D4  # noqa: E402
+# spdal 0.4.0 changed VEBF, LRHE, SCIL, SHEF and TRACED to follow their papers; deprecated/spdal.py
+# predates that, so parity is checked against the frozen 0.3.0 classes (tests/legacy_0_3_0).
+from legacy_0_3_0 import LRHE, VEBF, SCIL, SHEF, TRACED  # noqa: E402
 from test_classifiers import (  # noqa: E402 — same test package
     TRACED_MIN_AGREEMENT,
     _ALL,

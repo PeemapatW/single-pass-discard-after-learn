@@ -25,7 +25,10 @@ import pytest
 from sklearn.datasets import load_iris, make_classification
 from sklearn.metrics import accuracy_score
 
-from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED
+from spdal import D4
+# spdal 0.4.0 changed VEBF, LRHE, SCIL, SHEF and TRACED to follow their papers; deprecated/spdal.py
+# predates that, so parity is checked against the frozen 0.3.0 classes (tests/legacy_0_3_0).
+from legacy_0_3_0 import LRHE, VEBF, SCIL, SHEF, TRACED
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +390,7 @@ class TestD4Hyperparams:
     @pytest.mark.parametrize("kwargs", D4_PARAM_CASES)
     def test_iris_predictions_match_deprecated(self, iris_data, dep_module, kwargs):
         X_train, X_test, y_train = iris_data
-        clf_new = D4(**kwargs)
+        clf_new = D4(**{k: v for k, v in kwargs.items() if k != 'r'})   # D4 has no r since 0.4.0 (it was inert)
         clf_dep = dep_module.D4(**kwargs)
         clf_new.fit(X_train, y_train)
         clf_dep.fit(X_train, y_train)
@@ -396,7 +399,7 @@ class TestD4Hyperparams:
     @pytest.mark.parametrize("kwargs", D4_PARAM_CASES)
     def test_iris_neuron_values_match_deprecated(self, iris_data, dep_module, kwargs):
         X_train, _, y_train = iris_data
-        clf_new = D4(**kwargs)
+        clf_new = D4(**{k: v for k, v in kwargs.items() if k != 'r'})   # D4 has no r since 0.4.0 (it was inert)
         clf_dep = dep_module.D4(**kwargs)
         clf_new.fit(X_train, y_train)
         clf_dep.fit(X_train, y_train)
@@ -409,7 +412,7 @@ class TestD4Hyperparams:
     @pytest.mark.parametrize("kwargs", D4_PARAM_CASES)
     def test_iris_chunked_matches_deprecated(self, iris_chunks, dep_module, kwargs):
         chunks, X_test, classes = iris_chunks
-        clf_new = D4(**kwargs)
+        clf_new = D4(**{k: v for k, v in kwargs.items() if k != 'r'})   # D4 has no r since 0.4.0 (it was inert)
         clf_dep = dep_module.D4(**kwargs)
         _assert_chunk_preds_match(clf_new, clf_dep, chunks, X_test, classes=classes)
 

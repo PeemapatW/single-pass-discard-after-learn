@@ -28,13 +28,11 @@ class D4(ListNeuronMixin, VersatileEllipticBaseClassifier, PrincipleProjectionBa
         Number of principal axes to drop in eigenprojection (0 = use all axes).
     epsilon : float
         Numerical floor for widths and distances.
-    r : float
-        Radius scaling factor in calculate_proj_dist.
     threshold : float
         Angle threshold (degrees) for find_index_pairs.
     """
 
-    def __init__(self, norm=2, delta=1, width_parameter=1, reduce_dims=0, epsilon=1e-10, r=1.5, threshold=15):
+    def __init__(self, norm=2, delta=1, width_parameter=1, reduce_dims=0, epsilon=1e-10, threshold=15):
         self.neuron_list = []
         self.init_width = {}
         self.norm = norm
@@ -43,7 +41,6 @@ class D4(ListNeuronMixin, VersatileEllipticBaseClassifier, PrincipleProjectionBa
         self.reduce_dims = reduce_dims
         self.epsilon = epsilon
         self.threshold = threshold
-        self.r = r
 
     def create_new_neuron(self, X, y):
         """Creates a neuron from a full batch X (one class). Uses covariance of X when n > 1.

@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as LA
 
-from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin, _SQRT_2PI
+from spdal._base import VersatileEllipticBaseClassifier, ListNeuronMixin, _SQRT_2PI
 
 
 class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
@@ -223,10 +223,7 @@ class SCIL(ListNeuronMixin, VersatileEllipticBaseClassifier):
         for idx, neuron in enumerate(neurons_test):
             center = neuron['center']
             eig_c = neuron['eig_component'].real
-            # Variance clipped at 0 and epsilon added, as fit does: a zero eigenvalue used to divide by 0 and a
-            # round-off negative one gave NaN, which argmin returns first.
-            var = np.clip(np.asarray(neuron['variance'], dtype=float).real, 0, None)
-            width = _SQRT_2PI * np.sqrt(var).reshape(len(center)) + self.epsilon
+            width = _SQRT_2PI * np.sqrt(neuron['variance']).reshape(len(center))
             x_centered = X - center
             P_d_x = np.tensordot(x_centered, eig_c, axes=(1, 1))
             dist[:, idx] = LA.norm(P_d_x / width, ord=2, axis=1) ** 2 - 1

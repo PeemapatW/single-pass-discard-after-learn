@@ -20,7 +20,10 @@ import pytest
 from sklearn.datasets import load_iris, make_classification
 from sklearn.metrics import accuracy_score
 
-from spdal import LRHE, VEBF, SCIL, SHEF, D4, TRACED
+from spdal import D4
+# spdal 0.4.0 changed VEBF, LRHE, SCIL, SHEF and TRACED to follow their papers; deprecated/spdal.py
+# predates that, so parity is checked against the frozen 0.3.0 classes (tests/legacy_0_3_0).
+from legacy_0_3_0 import LRHE, VEBF, SCIL, SHEF, TRACED
 
 
 # Note: an autouse fixture in conftest.py pins eig_solver='eig' for the whole

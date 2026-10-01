@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as LA
 
-from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin
+from spdal._base import VersatileEllipticBaseClassifier, ListNeuronMixin
 
 
 class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
@@ -22,23 +22,12 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
         Numerical floor added to widths and eigenvalues.
     """
 
-    # N0 of the VEBF paper (Algorithm step 6e; "set to 2 ... for all experiments", p. 388). A constant of
-    # the method, not a hyperparameter.
-    N0 = 2
-
     def __init__(self, theta=0, delta=1, epsilon=1e-10):
         self.neuron_list = []
         self.init_width = {}
         self.delta = delta
         self.theta = theta
         self.epsilon = epsilon
-
-    def create_new_neuron(self, x_i, y_i):
-        """A new node at x_i with a zero covariance matrix, as the VEBF paper starts one (Algorithm step 6,
-        'Else' b). The base class starts at the identity, which is LRHE's rule."""
-        neuron = super().create_new_neuron(x_i, y_i)
-        neuron['cov'] = np.zeros_like(neuron['cov'])
-        return neuron
 
     def width_init(self, X, y):
         """Initialises width for new classes using a single global average pairwise distance.
@@ -70,24 +59,19 @@ class VEBF(ListNeuronMixin, VersatileEllipticBaseClassifier):
                 width_xi = neuron_xi['width']
                 eig_c_xi = neuron_xi['eig_component']
 
-                # Growth test with the TENTATIVE centre and covariance, and the eigenvectors of that
-                # covariance (VEBF steps 4-5; LRHE Alg. 1 steps 12-15).
                 cen_temp = (n_xi * cen_xi + x_i) / (n_xi + 1)
-                cov_temp = (n_xi*cov_xi + np.matmul(np.array([x_i]).T, [x_i]) - np.matmul(np.array([cen_xi]).T, [cen_xi])) / (n_xi+1) - np.matmul(np.array([cen_temp]).T, [cen_temp]) + np.matmul(np.array([cen_xi]).T, [cen_xi])
-                eig_c_temp, _ = self.compute_sorted_eigencomponent(cov_temp)
-                psi_temp = self.hyperellipsoidal_fn(x_i, cen_temp, eig_c_temp, width_xi)
+                psi_temp = self.hyperellipsoidal_fn(x_i, cen_temp, eig_c_xi, width_xi)
 
                 if psi_temp > 0:
                     # Create new neuron
                     self.neuron_list.append(self.create_new_neuron(x_i, y_i))
                     alpha = len(self.neuron_list) - 1
                 else:
-                    # Update. The widths grow only once the neuron holds more than N0 samples.
+                    # Update
                     n_temp = n_xi + 1
-                    if n_temp > self.N0:
-                        width_temp = np.array([width_xi[d] + np.abs(np.matmul(cen_temp - cen_xi, eig_c_temp[d].T)) for d in range(len(width_xi))])
-                    else:
-                        width_temp = width_xi
+                    cov_temp = (n_xi*cov_xi + np.matmul(np.array([x_i]).T, [x_i]) - np.matmul(np.array([cen_xi]).T, [cen_xi])) / (n_xi+1) - np.matmul(np.array([cen_temp]).T, [cen_temp]) + np.matmul(np.array([cen_xi]).T, [cen_xi])
+                    eig_c_temp, _ = self.compute_sorted_eigencomponent(cov_temp)
+                    width_temp = np.array([width_xi[d] + np.abs(np.matmul(cen_temp - cen_xi, eig_c_temp[d].T)) for d in range(len(width_xi))])
                     self.neuron_list[xi]['cov'] = cov_temp
                     self.neuron_list[xi]['width'] = width_temp
                     self.neuron_list[xi]['center'] = cen_temp

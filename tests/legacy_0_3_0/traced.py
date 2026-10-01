@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as LA
 
-from ._base import ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProjectionBaseClassifier, _SQRT_2PI
+from spdal._base import ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProjectionBaseClassifier, _SQRT_2PI
 
 
 class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProjectionBaseClassifier):
@@ -294,13 +294,6 @@ class TRACED(ListNeuronMixin, ScalableHyperelipsoidBaseClassifier, PrincipleProj
     def partial_fit(self, X, y, classes=None):
         """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
-
-    def find_mean_dist_to_neighbor(self, X):
-        """A one-sample class starts at sqrt(epsilon), SHEF's rule (Lemma 1), which TRACED's threshold builds on;
-        otherwise the mean nearest-neighbour distance."""
-        if len(X) == 1:
-            return np.sqrt(self.epsilon)
-        return super().find_mean_dist_to_neighbor(X)
 
     def dist_ths_y_update(self, y):
         """Doubles dist_ths[y] if more than half the class-y neurons have n < N0.

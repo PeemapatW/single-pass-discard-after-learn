@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as LA
 
-from ._base import VersatileEllipticBaseClassifier, ListNeuronMixin, _SQRT_2PI
+from spdal._base import VersatileEllipticBaseClassifier, ListNeuronMixin
 
 
 class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
@@ -30,10 +30,6 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         Numerical floor added to widths and eigenvalues.
     """
 
-    # N0 of the LRHE paper (p. 4, above Eq. 6: "a predetermined constant N0, which by default is set to 2").
-    # A constant of the method, not a hyperparameter.
-    N0 = 2
-
     def __init__(self, alpha=0.99, theta=0, delta=1, epsilon=1e-10):
         self.neuron_list = []
         self.init_width = {}
@@ -47,7 +43,6 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         if _reset:
             self.neuron_list = []
             self.init_width = {}
-            self._waiting_width = set()
         self.width_init(X, y)
         for x_i, y_i in zip(X, y):
             if self.check_neuron_class_exist(y_i):
@@ -62,24 +57,19 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
 
                 self.shift_and_shrink_neuron(x_i, y_i, psi_xi)
 
-                # Growth test with the TENTATIVE centre and covariance, and the eigenvectors of that
-                # covariance (Alg. 1 steps 12-15).
                 cen_temp = (n_xi * cen_xi + x_i) / (n_xi + 1)
-                cov_temp = (n_xi*cov_xi + np.matmul(np.array([x_i]).T, [x_i]) - np.matmul(np.array([cen_xi]).T, [cen_xi])) / (n_xi+1) - np.matmul(np.array([cen_temp]).T, [cen_temp]) + np.matmul(np.array([cen_xi]).T, [cen_xi])
-                eig_c_temp, _ = self.compute_sorted_eigencomponent(cov_temp)
-                psi_temp = self.hyperellipsoidal_fn(x_i, cen_temp, eig_c_temp, width_xi)
+                psi_temp = self.hyperellipsoidal_fn(x_i, cen_temp, eig_c_xi, width_xi)
 
                 if psi_temp > 0:
                     # Create new neuron
                     self.neuron_list.append(self.create_new_neuron(x_i, y_i))
                     alpha = len(self.neuron_list) - 1
                 else:
-                    # Update. The widths grow only once the neuron holds more than N0 samples (p. 4).
+                    # Update
                     n_temp = n_xi + 1
-                    if n_temp > self.N0:
-                        width_temp = np.array([width_xi[d] + np.abs(np.matmul(cen_temp - cen_xi, eig_c_temp[d].T)) for d in range(len(width_xi))])
-                    else:
-                        width_temp = width_xi
+                    cov_temp = (n_xi*cov_xi + np.matmul(np.array([x_i]).T, [x_i]) - np.matmul(np.array([cen_xi]).T, [cen_xi])) / (n_xi+1) - np.matmul(np.array([cen_temp]).T, [cen_temp]) + np.matmul(np.array([cen_xi]).T, [cen_xi])
+                    eig_c_temp, _ = self.compute_sorted_eigencomponent(cov_temp)
+                    width_temp = np.array([width_xi[d] + np.abs(np.matmul(cen_temp - cen_xi, eig_c_temp[d].T)) for d in range(len(width_xi))])
                     self.neuron_list[xi]['cov'] = cov_temp
                     self.neuron_list[xi]['width'] = width_temp
                     self.neuron_list[xi]['center'] = cen_temp
@@ -98,38 +88,13 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
         """Incrementally train on X, y — preserves existing neurons."""
         self.fit(X, y, _reset=False)
 
-    def width_init(self, X, y):
-        """Per-class mean pairwise distance (Eq. 12), fixed at the class's first slice of >= 2 samples.
-
-        A class first seen as a single sample has no pairwise distance (the base rule would give it width 0,
-        and every later sample of the class would open its own zero-width neuron). Until a slice holds >= 2
-        of its samples it takes the whole batch's mean pairwise distance, VEBF's and SCIL's rule; sqrt(e) if
-        the batch itself is one sample.
-        """
-        waiting = getattr(self, "_waiting_width", set())
-        batch = None
-        for y_ in np.unique(y):
-            if y_ in self.init_width and y_ not in waiting:
-                continue
-            Xy = X[y == y_]
-            if len(Xy) >= 2:
-                self.init_width[y_] = self.average_pairwise_distance(Xy)
-                waiting.discard(y_)
-            else:
-                if batch is None:
-                    batch = (self.average_pairwise_distance(X) if len(X) >= 2
-                             else np.full(X.shape[1], np.sqrt(np.e)))
-                self.init_width[y_] = batch
-                waiting.add(y_)
-        self._waiting_width = waiting
-
     def predict(self, X):
         """Predicts class labels by finding the nearest neuron (min hyperellipsoidal distance)."""
         dist = np.empty((len(X), len(self.neuron_list)))
         for idx, neuron in enumerate(self.neuron_list):
             center = neuron['center']
             eig_c = neuron['eig_component'].real
-            width = np.array(neuron['width']).reshape(len(center)) + self.epsilon
+            width = np.array(neuron['width']).reshape(len(center))
             x_centered = X - center
             P_d_x = np.tensordot(x_centered, eig_c, axes=(1, 1))
             dist[:, idx] = LA.norm(P_d_x / width, ord=2, axis=1) ** 2 - 1
@@ -155,34 +120,3 @@ class LRHE(ListNeuronMixin, VersatileEllipticBaseClassifier):
                     new_cen = cen_idx - 1/n_idx * (x_i - cen_idx)
                     self.neuron_list[idx]['width'] = new_width
                     self.neuron_list[idx]['center'] = new_cen
-
-    def merge_neuron(self, alpha, y):
-        """Merges EVERY other class-y neuron that meets the merging condition into neuron alpha.
-
-        LRHE Alg. 1 steps 18-22 / 25-29. One pass over the other same-class neurons in neuron_list order (the
-        paper does not order them); alpha absorbs each one that qualifies and grows as it goes, so a later
-        candidate is tested against the merged neuron. The merging condition is VEBF's (either centre inside
-        the other neuron), and the merged parameters are the base class's.
-        """
-        j = 0
-        while True:
-            others = [i for i, n in enumerate(self.neuron_list) if n['y'] == y and i != alpha]
-            if j >= len(others):
-                return
-            beta = others[j]
-            A, B = self.neuron_list[alpha], self.neuron_list[beta]
-            psi_alpha = self.hyperellipsoidal_fn(A['center'], B['center'], B['eig_component'], B['width'])
-            psi_beta = self.hyperellipsoidal_fn(B['center'], A['center'], A['eig_component'], A['width'])
-            if psi_alpha <= self.theta or psi_beta <= self.theta:
-                n_gamma = A['n'] + B['n']
-                cen_gamma = (A['n'] * A['center'] + B['n'] * B['center']) / n_gamma
-                cov_gamma = self._merge_covariance(A['n'], A['cov'], A['center'], B['n'], B['cov'], B['center'])
-                eig_c_gamma, pca_var_gamma = self.compute_sorted_eigencomponent(cov_gamma)
-                A.update(n=n_gamma, center=cen_gamma, cov=cov_gamma, eig_component=eig_c_gamma,
-                         width=_SQRT_2PI * np.sqrt(np.abs(pca_var_gamma)))
-                self.neuron_list.pop(beta)
-                if beta < alpha:
-                    alpha -= 1
-                # j stays: the list shifted left, so the next candidate is now at position j
-            else:
-                j += 1

@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as LA
 
-from ._base import ScalableHyperelipsoidBaseClassifier
+from spdal._base import ScalableHyperelipsoidBaseClassifier
 
 
 class SHEF(ScalableHyperelipsoidBaseClassifier):
@@ -61,26 +61,6 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         neuron = {'y': y_i, 'cov': cov, 'center': cen, 'n': n}
         return neuron
 
-    def distance_init(self, X, y):
-        """Classes in the first chunk start at the median nearest-neighbour distance of their own data
-        (Eq. 25). A class first seen in a later chunk starts at sqrt(epsilon) (p. 6: "the initial width of all
-        new classes appearing after the first chunk will be set to sqrt(eps)")."""
-        if not self.dist_ths:
-            return super().distance_init(X, y)
-        for y_ in set(np.unique(y)) - set(self.dist_ths.keys()):
-            self.dist_ths[y_] = np.sqrt(self.epsilon)
-
-    def find_median_dist_to_neighbor(self, X):
-        """A one-sample class starts at sqrt(epsilon) (Eq. 25, Lemma 1); otherwise the median nearest-
-        neighbour distance."""
-        if len(X) == 1:
-            return np.sqrt(self.epsilon)
-        return super().find_median_dist_to_neighbor(X)
-
-    def _reg_inv(self, S):
-        """(S + epsilon I)^-1, the regularised inverse of Eq. 17. Works on one matrix or a stack."""
-        return LA.inv(S + self.epsilon * np.eye(S.shape[-1]))
-
     def merge_neuron(self, alpha, y):
         """Merges neuron alpha with its nearest same-class neighbour if their ellipsoids overlap.
 
@@ -93,16 +73,15 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         n_alpha = self.neuron_list[alpha]['n']
         cen_alpha = self.neuron_list[alpha]['center']
         cov_alpha = self.neuron_list[alpha]['cov']
-        if len(neurons_y_idx) > 1 and n_alpha >= self.M:          # Alg. 1 step 15
+        if len(neurons_y_idx) > 1 and n_alpha > self.M:
             distances = [LA.norm(cen_alpha - self.neuron_list[i]['center']) for i in neurons_y_idx]
             beta = neurons_y_idx[np.argsort(distances)[1]]
             cen_beta = self.neuron_list[beta]['center']
             cov_beta = self.neuron_list[beta]['cov']
 
             # Precompute some matrices for efficiency
-            # Eq. 37: the r-scaled ellipsoid has shape r^2 S, inverse S^-1 / r^2 (Theorem 2 prints S / r^2).
-            cov_tilde_inv = self._reg_inv(cov_beta) / (self.r ** 2)
-            cov_tilde = cov_alpha * (self.r ** 2)
+            cov_tilde_inv = LA.inv(cov_beta) / (self.r ** 2)
+            cov_tilde = cov_alpha / (self.r ** 2)
             F = (-cen_alpha + cen_beta) @ cov_tilde_inv
             D = cov_tilde @ cov_tilde_inv + np.outer(cen_alpha, F)
 
@@ -167,7 +146,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
     def _vectorized_discriminant_vector(self, c1, S1, c2, S2):
         """Calculates the discriminant vector between two SHEFs for a batch of neurons."""
         S_sum = S1 + S2
-        S_sum_inv = self._reg_inv(S_sum)
+        S_sum_inv = LA.inv(S_sum)
         c_diff = c2 - c1
         w = np.einsum('...ij,...j->...i', S_sum_inv, c_diff)
         return w
@@ -190,7 +169,7 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
         for idx, neuron in enumerate(self.neuron_list):
             center = neuron['center']
             cov = neuron['cov']
-            cov_inv = self._reg_inv(cov)
+            cov_inv = LA.inv(cov)
             x_centered = X - center
             wp = np.tensordot(x_centered, cov_inv, axes=(1, 1))
             wp_norm = LA.norm(wp, axis=1)[:, None]
