@@ -23,10 +23,12 @@ class SHEF(ScalableHyperelipsoidBaseClassifier):
     r : float
         Ellipsoid radius scaling factor used in projection-distance calculations.
     epsilon : float
-        Numerical floor to avoid division by zero.
+        Regularisation of Eq. 17 (S + epsilon I), the initial threshold sqrt(epsilon) of a class first seen
+        as one sample or after the first chunk, and the initial covariance epsilon I of a new neuron.
+        Default 1e-4, the value used in the SHEF paper.
     """
 
-    def __init__(self, M = 3, r = 1.5, epsilon=1e-10):
+    def __init__(self, M = 3, r = 1.5, epsilon=1e-4):
         self.neuron_list = []
         self.dist_ths = {}
         self.M = M

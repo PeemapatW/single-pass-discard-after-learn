@@ -4,6 +4,15 @@ All notable changes to `spdal` are documented here. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semantic
 versioning (pre-1.0: minor bumps may change default behaviour).
 
+## [0.4.1]
+
+### Changed (may alter SHEF results vs 0.4.0)
+- `SHEF` now uses `epsilon=1e-4` by default, the value used throughout the SHEF paper (was `1e-10`). In SHEF
+  epsilon is more than a numerical guard: sqrt(epsilon) is the starting threshold of a class first seen as a
+  single sample or after the first chunk, so with a much smaller value these classes start far narrower than
+  the paper intends. The paper's own Spambase, Waveform and Letter results are reproduced about equally well with
+  either value. Pass `epsilon=1e-10` to obtain the 0.4.0 behaviour. No other classifier changes.
+
 ## [0.4.0]
 
 This release brings several classifiers closer to the algorithms as described in their papers, and
