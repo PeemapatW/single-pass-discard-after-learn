@@ -206,3 +206,9 @@ def test_d4_has_no_r():
     assert 'r' not in D4().get_params()
     with pytest.raises(TypeError):
         D4(r=1.5)
+
+
+def test_shef_default_epsilon_is_the_papers():
+    """0.4.1: SHEF's default epsilon is the paper's 1e-4 (p. 5 and 13); 0.4.0 used 1e-10."""
+    assert SHEF().epsilon == 1e-4
+    assert old.SHEF().epsilon == 1e-10

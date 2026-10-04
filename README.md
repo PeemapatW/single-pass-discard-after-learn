@@ -288,4 +288,4 @@ If you use this library in your research, please cite the relevant paper(s):
 
 ## Changelog
 
-See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.4.0**: `VEBF`, `LRHE`, `SHEF` and `TRACED` are brought closer to the algorithms as described in their papers, so their results may differ from 0.3.0; `LRHE` and `SCIL` gain small numerical safeguards; and `D4` no longer takes an `r` argument. Details and paper references are in the changelog.
+See [CHANGELOG.md](https://github.com/PeemapatW/single-pass-discard-after-learn/blob/main/CHANGELOG.md). Latest — **0.4.1**: `SHEF` uses the paper's `epsilon=1e-4` by default (was `1e-10`). **0.4.0**: `VEBF`, `LRHE`, `SHEF` and `TRACED` are brought closer to the algorithms as described in their papers, so their results may differ from 0.3.0; `LRHE` and `SCIL` gain small numerical safeguards; and `D4` no longer takes an `r` argument. Details and paper references are in the changelog.
